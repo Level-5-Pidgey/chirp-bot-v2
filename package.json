@@ -1,0 +1,23 @@
+{
+  "name": "chirp-bot-v2",
+  "version": "0.0.1",
+  "main": "dist/bot.js",
+  "scripts": {
+    "tsc": "tsc",
+    "start": "node dist/bot.js"
+  },
+  "keywords": [],
+  "author": "Carl Bird",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^14.0.27",
+    "discord.js": "github:hydrabolt/discord.js",
+    "mongodb": "^3.6.0",
+    "winston": "^3.3.3",
+    "winston-daily-rotate-file": "^4.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^3.9.7"
+  },
+  "description": "A custom-made discord bot for Level 5 Pidgey's Discord server."
+}
