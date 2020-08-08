@@ -1,12 +1,15 @@
-/**
+/*
  Import configs and dependencies
  */
-import { token } from "./config/token";
-import { prefix } from "./config/config";
-import {Client} from "discord.js";
-import * as winston from "winston";
 
-const client = new Client();
+import {owners, prefix} from "./config/config";
+import * as winston from "winston";
+import { DbClient } from "./client/DBClient";
+import BotClient from "./client/BotClient";
+import { token } from "./config/token";
+/*
+    Create clients and logging tools
+ */
 const logger = winston.createLogger(
     {
         transports: [
@@ -16,6 +19,7 @@ const logger = winston.createLogger(
     }
 );
 
-client.on('ready', () => logger.log('info', 'Discord is ready' + prefix));
+const client : BotClient = new BotClient({ token, owners});
+client.start();
 
-client.login(token);
+const DClient = new DbClient("admin", "admin", "chirp-bot", logger);

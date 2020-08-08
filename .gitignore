@@ -104,3 +104,6 @@ dist
 .tern-port
 src/config/token.ts
 .idea/workspace.xml
+
+#MongoFiles
+.mongo-volume/
