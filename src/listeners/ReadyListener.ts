@@ -1,5 +1,5 @@
 import { Listener } from "discord-akairo";
-
+import {LoggerClient} from "../client/LoggerClient";
 
 export default class ReadyListener extends Listener {
     public constructor()
@@ -12,8 +12,9 @@ export default class ReadyListener extends Listener {
         });
     }
 
+    //Log that the bot is online and ready.
     public exec(): void
     {
-        console.log(`${this.client.user.tag} is now online and ready!`);
+        LoggerClient.WriteInfoLog(`${this.client.user.tag} is now online and ready!`)
     }
 }

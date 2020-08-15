@@ -13,7 +13,7 @@ declare module "discord-akairo"
 
 interface BotOptions {
     token? : string,
-    owners?: string | string[];
+    owners? : string | string[];
 }
 
 export default class BotClient extends AkairoClient {
@@ -50,6 +50,9 @@ export default class BotClient extends AkairoClient {
     {
         super({
             ownerID : config.owners
+        },
+        {
+            disableMentions: 'everyone'
         });
 
         this.config = config;

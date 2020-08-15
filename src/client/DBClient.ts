@@ -1,38 +1,24 @@
-import {Logger} from "winston";
-import {mongoose} from "mongoose";
+import mongoose = require("mongoose");
+import {mongoDBName} from "../config/config";
+import {LoggerClient} from "./LoggerClient";
 
 export class DbClient {
-
     public loadedDatabase : IDBDatabase;
 
-    constructor(username : string, pass : string, dbName : string, winstonLogger : Logger)
+    constructor()
     {
-        this.Connect(username, pass, dbName, winstonLogger);
-    }
-
-    private async Connect(username : string, pass : string, dbName : string, winstonLogger : Logger)
-    {
-        const connect = () =>
+        //Connect to the MongoDb and get the database requested in the client constructor.
+        mongoose.connect(`mongodb://mongo:27017/${mongoDBName}`, { useNewUrlParser : true },  (err) =>
         {
-            mongoose.connect(`mongodb://${username}:${pass}@mongo:27017/${dbName}`, { useNewUrlParser : true })
-                .then
-                (
-                    () =>
-                    {
-                        return winstonLogger.info(`Successfully connected to Mongo database \'${dbName}' with user ${username}`);
-                    }
-                )
-                .catch
-                (
-                    error =>
-                    {
-                        winstonLogger.error(`Error connecting to Mongo database \'${dbName}' with user ${username}`);
-                        return process.exit();
-                    }
-                );
-        };
-        connect();
+            if (!err) {
+                this.loadedDatabase = mongoose.connection;
 
-        mongoose.connection.on('disconnected', connect);
+                LoggerClient.WriteInfoLog(`Successfully connected to Mongo database \'${mongoDBName}\'!`);
+            } else {
+                LoggerClient.WriteErrorLog(`Error connecting to Mongo database \'${mongoDBName}\'!`);
+
+                process.exit();
+            }
+        });
     }
 }

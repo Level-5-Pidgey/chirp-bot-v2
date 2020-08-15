@@ -106,4 +106,7 @@ src/config/token.ts
 .idea/workspace.xml
 
 #MongoFiles
-.mongo-volume/
+mongo-volume/
+
+#Workspace XML
+.idea/*.xml

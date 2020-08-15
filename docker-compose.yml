@@ -2,18 +2,11 @@ version: '3'
 services:
  bot:
   build: .
-  links:
-   - mongo
   depends_on:
     - mongo
   restart: always
  mongo:
   image: "mongo"
-  container_name: 'chirp-mongo'
-  environment:
-   MONGO_INITDB_DATABASE: chirp-bot
-   MONGO_INITDB_ROOT_USERNAME: admin
-   MONGO_INITDB_ROOT_PASSWORD: admin
   volumes:
     - ./mongo-volume:/data/db
   ports:
