@@ -108,5 +108,6 @@ src/config/token.ts
 #MongoFiles
 mongo-volume/
 
-#Workspace XML
-.idea/*.xml
+#IntelliJ project files
+**/.idea/workspace.xml
+**/.idea/tasks.xml
