@@ -3,7 +3,6 @@ import {mongoDBName} from "../config/config";
 import {LoggerClient} from "./LoggerClient";
 
 export class DbClient {
-    public loadedDatabase : IDBDatabase;
 
     constructor()
     {
@@ -11,8 +10,6 @@ export class DbClient {
         mongoose.connect(`mongodb://mongo:27017/${mongoDBName}`, { useNewUrlParser : true },  (err) =>
         {
             if (!err) {
-                this.loadedDatabase = mongoose.connection;
-
                 LoggerClient.WriteInfoLog(`Successfully connected to Mongo database \'${mongoDBName}\'!`);
             } else {
                 LoggerClient.WriteErrorLog(`Error connecting to Mongo database \'${mongoDBName}\'!`);

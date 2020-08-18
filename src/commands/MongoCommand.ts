@@ -9,7 +9,7 @@ export default class MongoCommand extends Command {
         super("mongo",
         {
             aliases : ["mongo"],
-            category : "utils",
+            category : "db",
             description : {
                 content : "Adds your user to the mongo database.",
                 usage : "mongo",

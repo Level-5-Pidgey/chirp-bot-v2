@@ -1,5 +1,7 @@
 import {Logger} from "winston";
 import * as winston from "winston";
+import {Command} from "discord-akairo";
+import {Message} from "discord.js";
 
 export class LoggerClient
 {
@@ -16,7 +18,7 @@ export class LoggerClient
     public static WriteErrorLog(msg : String) : void
     {
         this.mylogger.error({
-                timeStamp: new Date().toLocaleDateString(),
+                timeStamp: new Date().toLocaleString('en-GB', { timeZone: 'UTC' }),
                 message: msg
             }
         );
@@ -25,9 +27,14 @@ export class LoggerClient
     public static WriteInfoLog(msg : String) : void
     {
         this.mylogger.info({
-            timeStamp: new Date().toLocaleDateString(),
+            timeStamp: new Date().toLocaleString('en-GB', { timeZone: 'UTC' }),
             message: msg
         })
+    }
+
+    public static LogCommandUsage(msg : Message, cmd : Command)
+    {
+        this.WriteInfoLog(`${msg.author.username} (ID : ${msg.author.id}) used command ${cmd.toString()} in guild ${msg.guild.name} (${msg.guild.id.toString()})`)
     }
 }
 

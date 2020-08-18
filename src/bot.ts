@@ -1,14 +1,13 @@
 /*
  Import configs and dependencies
  */
-import {owners, prefix} from "./config/config";
-import {DbClient} from "./client/DBClient";
+import { owners } from "./config/config";
+import { DbClient } from "./client/DBClient";
 import BotClient from "./client/BotClient";
 import { token } from "./config/token";
-import {LoggerClient} from "./client/LoggerClient";
 
 /*
-    Create clients and logging tools
+    Create clients, login to the right stuff!
  */
 const client : BotClient = new BotClient({token, owners});
 client.start();
