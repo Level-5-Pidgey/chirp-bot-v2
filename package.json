@@ -10,6 +10,7 @@
   "author": "Carl Bird",
   "license": "MIT",
   "dependencies": {
+    "@typegoose/typegoose": "^7.3.4",
     "@types/node": "^14.0.27",
     "discord-akairo": "^8.0.0",
     "discord.js": "github:hydrabolt/discord.js",
@@ -19,6 +20,7 @@
     "winston-daily-rotate-file": "^4.5.0"
   },
   "devDependencies": {
+    "@types/mongoose": "^5.7.36",
     "typescript": "^3.9.7"
   },
   "description": "A custom-made discord bot for Level 5 Pidgey's Discord server."

@@ -2,7 +2,7 @@ FROM alpine:latest
 
 #Create Bot Directory
 WORKDIR /usr/src/chirp-bot-v2
-COPY package.json settings.json ./
+COPY package.json ./
 
 #Installation
 RUN apk add --update \

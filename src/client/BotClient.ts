@@ -1,7 +1,8 @@
 import { AkairoClient, CommandHandler, ListenerHandler } from "discord-akairo";
 import { join } from "path";
 import { owners, prefix } from "../config/config";
-import { Message } from "discord.js";
+import { GuildMember, Message, Role, Snowflake} from "discord.js";
+import { LoggerClient } from "./LoggerClient";
 
 declare module "discord-akairo"
 {
@@ -17,6 +18,8 @@ interface BotOptions {
 }
 
 export default class BotClient extends AkairoClient {
+
+    public static listOfXpUsers : Array<Snowflake> = new Array<Snowflake>();
     public config : BotOptions;
     public listenerHandler : ListenerHandler = new ListenerHandler(this, {
         directory : join(__dirname, "..", "listeners")}
@@ -56,6 +59,9 @@ export default class BotClient extends AkairoClient {
         });
 
         this.config = config;
+
+        //Clear out the list of users that have gained XP every minute.
+        this.setInterval(BotClient.clearXPUsers, 1*60*1000 /* Reset the list of XP-claimed users once a minute.*/);
     }
 
     private async init() : Promise<void>
@@ -66,13 +72,38 @@ export default class BotClient extends AkairoClient {
             listenerHandler : this.listenerHandler
         });
 
+        //Load all emitters and commands
         this.commandHandler.loadAll();
         this.listenerHandler.loadAll();
     }
 
-    public async start(): Promise<string>
+    public async start() : Promise<string>
     {
         await this.init();
         return this.login(this.config.token);
+    }
+
+    public getRolesForUser(userToGetRolesFor : GuildMember) : Role[]
+    {
+        return userToGetRolesFor.roles.cache.array()
+    }
+
+    public DoesUserHaveRole(userToCheck : GuildMember, roleToCheck : Role) : boolean
+    {
+        return this.getRolesForUser(userToCheck).includes(roleToCheck);
+    }
+
+    public DoesUserHaveRoleAsSnowflake(userToCheck : GuildMember, roleToCheck : Snowflake) : boolean
+    {
+        userToCheck.guild.roles.fetch(roleToCheck).then((value =>
+        {
+            return this.getRolesForUser(userToCheck).includes(value)
+        }));
+
+        return false;
+    }
+
+    private static clearXPUsers() : void {
+        BotClient.listOfXpUsers = new Array<Snowflake>();
     }
 }
