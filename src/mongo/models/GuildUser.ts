@@ -1,13 +1,19 @@
-import { prop, getModelForClass } from '@typegoose/typegoose';
+import mongoose from "mongoose";
 
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
+const userXPInfo = new mongoose.Schema({
+    lastMessage : { type : Date, default: Date.now },
+    totalXP : { type : Number, default : 0 },
+    xpThisMonth : { type : Number, default : 0 },
+    lastEarnedMOTM : { type : Date },
+    levelNick : { type : String }
+});
 
-export class GuildUser {
-    @prop({ unique: true, required: true })
-    public userID: string;
+const GuildUserModel = new mongoose.Schema({
+    userID : { type: String, unique : true, required: true },
+    xpInfo : {
+        type: userXPInfo,
+        default: {}
+    }
+});
 
-    @prop({ default : 0 })
-    public totalXP : number;
-}
-
-export const GuildUserModel = getModelForClass(GuildUser, { schemaOptions: { timestamps: true } });
+export default mongoose.model("User", GuildUserModel);

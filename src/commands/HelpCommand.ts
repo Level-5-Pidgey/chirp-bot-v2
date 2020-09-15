@@ -117,7 +117,7 @@ export default class HelpCommand extends Command {
             const printableCategories =
                 {
                     utils: "📝\u2000General",
-                    db: "✏\u2000DB",
+                    guild: "✏\u2000Mongo Database",
                 }[commandCategory.id];
 
             //List out the categories that should be printed

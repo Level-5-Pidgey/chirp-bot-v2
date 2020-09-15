@@ -2,13 +2,14 @@ import { AkairoClient, CommandHandler, ListenerHandler } from "discord-akairo";
 import { join } from "path";
 import { owners, prefix } from "../config/config";
 import { GuildMember, Message, Role, Snowflake} from "discord.js";
-import { LoggerClient } from "./LoggerClient";
+import { DbClient } from "./DBClient";
 
 declare module "discord-akairo"
 {
     interface AkairoClient {
         commandHandler : CommandHandler,
         listenerHandler : ListenerHandler,
+        dbClient : DbClient;
     }
 }
 
@@ -18,7 +19,6 @@ interface BotOptions {
 }
 
 export default class BotClient extends AkairoClient {
-
     public static listOfXpUsers : Array<Snowflake> = new Array<Snowflake>();
     public config : BotOptions;
     public listenerHandler : ListenerHandler = new ListenerHandler(this, {
@@ -59,6 +59,7 @@ export default class BotClient extends AkairoClient {
         });
 
         this.config = config;
+        this.dbClient = new DbClient();
 
         //Clear out the list of users that have gained XP every minute.
         this.setInterval(BotClient.clearXPUsers, 1*60*1000 /* Reset the list of XP-claimed users once a minute.*/);
