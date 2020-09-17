@@ -1,8 +1,9 @@
 import { Listener } from "discord-akairo";
-import {Message, TextChannel} from "discord.js";
+import {Guild, Message, TextChannel} from "discord.js";
 import BotClient from "../client/BotClient";
 import {xpMax, xpMin} from "../config/config";
 import {DbClient} from "../client/DBClient";
+import {LoggerClient} from "../client/LoggerClient";
 
 export default class MessageXPListener extends Listener {
     private dbClient = new DbClient();
@@ -17,7 +18,7 @@ export default class MessageXPListener extends Listener {
     }
 
     //When a user sends a message that is not a command, XP should be added to them.
-    public async exec(message : Message): Promise<void>
+    public async exec(message : Message) : Promise<boolean>
     {
         if ((message.channel instanceof TextChannel) && await this.dbClient.CanEarnXPInThisChannel(message) && !message.author.bot)
         {
@@ -28,13 +29,10 @@ export default class MessageXPListener extends Listener {
                 BotClient.listOfXpUsers.push(message.author.id);
 
                 //This user is eligible, so we can add XP to them!
-                return this.dbClient.ModifyXP(message.member, this.generateRandXp(), true);
+                return this.dbClient.ModifyXP(message.member, await this.dbClient.GenerateRandXp(message.guild), true, true);
             }
         }
     }
 
-    private generateRandXp() : number
-    {
-        return Math.random() * (xpMax - xpMin) + xpMin;
-    }
+
 }

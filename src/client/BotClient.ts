@@ -10,6 +10,8 @@ declare module "discord-akairo"
         commandHandler : CommandHandler,
         listenerHandler : ListenerHandler,
         dbClient : DbClient;
+        DoesUserHaveRoleAsSnowflake;
+
     }
 }
 
@@ -31,6 +33,8 @@ export default class BotClient extends AkairoClient {
         allowMention : true,
         handleEdits : true,
         commandUtil : true,
+        blockBots: true,
+        blockClient: true,
         commandUtilLifetime : 3e5,
         defaultCooldown: 6e4,
         argumentDefaults :
@@ -73,6 +77,31 @@ export default class BotClient extends AkairoClient {
             listenerHandler : this.listenerHandler
         });
 
+        //Add boolean command argument
+        this.commandHandler.resolver.addType("boolean", (message, phrase) =>
+        {
+            //If the phrase is empty, default to false.
+            if (!phrase)
+            {
+                return false;
+            }
+
+            //If the phrase looks to be an affirmative, return true.
+            if(phrase.toUpperCase() == "YES" || phrase.toUpperCase() == "TRUE" || phrase == "1")
+            {
+                return true;
+            }
+
+            //If the phrase looks to be a negative, return false.
+            if(phrase.toUpperCase() == "NO" || phrase.toUpperCase() == "FALSE" || phrase == "0")
+            {
+                return false;
+            }
+
+            //If the phrase doesn't match either of the above, return null.
+            return null;
+        });
+
         //Load all emitters and commands
         this.commandHandler.loadAll();
         this.listenerHandler.loadAll();
@@ -94,15 +123,14 @@ export default class BotClient extends AkairoClient {
         return this.getRolesForUser(userToCheck).includes(roleToCheck);
     }
 
-    public DoesUserHaveRoleAsSnowflake(userToCheck : GuildMember, roleToCheck : Snowflake) : boolean
-    {
+    public DoesUserHaveRoleAsSnowflake = (userToCheck : GuildMember, roleToCheck : Snowflake): boolean => {
         userToCheck.guild.roles.fetch(roleToCheck).then((value =>
         {
             return this.getRolesForUser(userToCheck).includes(value)
         }));
 
         return false;
-    }
+    };
 
     private static clearXPUsers() : void {
         BotClient.listOfXpUsers = new Array<Snowflake>();

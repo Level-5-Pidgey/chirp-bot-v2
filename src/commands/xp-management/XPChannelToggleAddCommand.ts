@@ -1,14 +1,13 @@
 import {Command, Flag} from "discord-akairo";
 import {DMChannel, Message, TextBasedChannel, TextChannel} from "discord.js";
-import {embedColour, prefix} from "../config/config";
-import {LoggerClient} from "../client/LoggerClient";
+import {embedColour, prefix} from "../../config/config";
+import {LoggerClient} from "../../client/LoggerClient";
 
 export default class XPChannelToggleAddCommand extends Command {
     public constructor() {
         super("xpt-add",
             {
                 aliases : ["add", "add-channel", "add-to-list", "a", "i"],
-                category : "guild",
                 args:
                     [
                         {
@@ -35,20 +34,27 @@ export default class XPChannelToggleAddCommand extends Command {
     public async exec(message: Message, { channelToAdd }) : Promise<Message>
     {
         if (message.channel instanceof TextChannel) {
-            await this.client.dbClient.AddXPListChannel(channelToAdd).then(value =>
+            if(await this.client.dbClient.CanUseStaffCommands(message.member))
             {
-                this.client.dbClient.IsXPListModeBlackList(channelToAdd.guild).then(isBlacklist =>
+                await this.client.dbClient.AddXPListChannel(channelToAdd).then(value =>
                 {
-                    if(value)
+                    this.client.dbClient.IsXPListModeBlackList(channelToAdd.guild).then(isBlacklist =>
                     {
-                        return message.util.send(`Successfully added channel ${channelToAdd.name} to the list of XP ${isBlacklist ? "blacklisted" : "whitelisted"} channels.`);
-                    }
-                    else
-                    {
-                        return message.util.send(`Failed to add channel ${channelToAdd.name} to the list of XP ${isBlacklist ? "blacklisted" : "whitelisted"} channels.`);
-                    }
+                        if(value)
+                        {
+                            return message.util.send(`Successfully added channel ${channelToAdd.toString()} to the list of XP ${isBlacklist ? "blacklisted" : "whitelisted"} channels.`);
+                        }
+                        else
+                        {
+                            return message.util.send(`Failed to add channel ${channelToAdd.toString()} to the list of XP ${isBlacklist ? "blacklisted" : "whitelisted"} channels.\n You may have possibly added this channel already?`);
+                        }
+                    });
                 });
-            });
+            }
+            else
+            {
+                return message.util.send("You do not have the appropriate permissions for this command!");
+            }
         }
         else
         {

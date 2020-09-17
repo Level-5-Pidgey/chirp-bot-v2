@@ -1,7 +1,7 @@
 import {Command, Flag} from "discord-akairo";
 import {DMChannel, Message} from "discord.js";
-import {embedColour, prefix} from "../config/config";
-import {LoggerClient} from "../client/LoggerClient";
+import {embedColour, prefix} from "../../config/config";
+import {LoggerClient} from "../../client/LoggerClient";
 
 export default class XPChannelToggleCommand extends Command {
     public constructor() {
@@ -16,7 +16,7 @@ export default class XPChannelToggleCommand extends Command {
                         [
                             "xptoggle add-channel #bot-commands",
                             "xpt r #no-microphone",
-                            "xpt blacklist"
+                            "xpt mode"
                         ]
                 },
                 ratelimit : 3
@@ -27,7 +27,8 @@ export default class XPChannelToggleCommand extends Command {
         const method = yield {
             type: [
                 ["xpt-add", "add", "add-channel", "add-to-list", "a", "i"],
-                ["xpt-remove", "remove", "remove-channel", "remove-from-list", "d", "r"]
+                ["xpt-remove", "remove", "remove-channel", "remove-from-list", "d", "r"],
+                ["xpt-toggle", "mode", "toggle-mode", "m"],
             ],
             otherwise : async (message : Message) => {
                 if (!(message.channel instanceof DMChannel))
@@ -40,7 +41,6 @@ export default class XPChannelToggleCommand extends Command {
                 }
             }
         };
-
         return Flag.continue(method);
     }
 }

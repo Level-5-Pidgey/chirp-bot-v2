@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import {prefix, xpMax, xpMin} from "../../config/config";
+import {owners, prefix, xpMax, xpMin} from "../../config/config";
 
 const xpSettings = new mongoose.Schema({
     xpChannelList : { type : Array, default : [] },
@@ -10,11 +10,20 @@ const xpSettings = new mongoose.Schema({
     levelThreshholdRoles : { type : Array, default : [] },
 });
 
+const staffSettings = new mongoose.Schema({
+    staffMembers : { type : Array, default : owners },
+    staffRoles : { type : Array, default : [] },
+});
+
 const MongoGuild = new mongoose.Schema({
     guildID : { type : String, unique : true, required: true },
     guildPrefix : { type : String, default : prefix },
     guildXPSettings : {
         type : xpSettings,
+        default : { }
+    },
+    guildStaffSettings : {
+        type : staffSettings,
         default : { }
     }
 });

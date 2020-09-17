@@ -7,7 +7,7 @@ export default class HelpCommand extends Command {
     public constructor() {
         super("help",
             {
-                aliases : ["help", "?", "commands"],
+                aliases : ["help", "?", "commands", "h"],
                 category : "general",
                 clientPermissions: [
                     'EMBED_LINKS',
@@ -118,6 +118,7 @@ export default class HelpCommand extends Command {
                 {
                     utils: "📝\u2000General",
                     guild: "✏\u2000Mongo Database",
+                    xp: "✏\u2000XP Commands",
                 }[commandCategory.id];
 
             //List out the categories that should be printed
@@ -149,10 +150,23 @@ export default class HelpCommand extends Command {
         //DM the user that asked for help.
         if (!(message.channel instanceof DMChannel))
         {
-            message.author.send(helpEmbed);
+            message.author.send(helpEmbed)
+                .then(promiseResult =>
+                {
+                    //Send logger message about successful promise resolution.
+                    LoggerClient.WriteInfoLog(`Successfully sent help commandlist  to ${message.author.username}, promise returned : ${promiseResult}`);
+                })
+                .catch(rejection =>
+                {
+                    //Catch rejected promise if the user has left the server or is blocked.
+                    LoggerClient.WriteErrorLog(`Couldn't message user ${message.author.username} their level-up message, promise returned : ${rejection.toString()}`);
+
+                    //Send message in the channel to let the user know that they've blocked the bot
+                    return message.util.send(`Hey ${message.author}, I'm not able to send you a message with a command list. Did you block me? 😭`);
+                });
 
             //Put a message in the channel alerting about the DM.
-            return message.util.send(`Check your DMs, ${message.author.tag}! I've sent you a message with general help for the bot.`);
+            return message.util.send(`Check your DMs, ${message.author}! I've sent you a message with general help for the bot.`);
         }
         else
         {

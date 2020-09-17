@@ -6,10 +6,10 @@ COPY package.json ./
 
 #Installation
 RUN apk add --update \
-	&& apk add --no-cache nodejs-current nodejs-npm \
-	&& apk add --no-cache --virtual .build git curl build-base g++ \
+	&& apk add --no-cache nodejs-current nodejs-npm cairo-dev jpeg-dev pango-dev giflib-dev\
+	&& apk add --no-cache --virtual .gyp git curl build-base python3 make g++  \
 	&& npm install \
-	&& apk del .build 
+	&& apk del .gyp
 
 #Copy Project to WORKDIR
 ADD . /usr/src/chirp-bot-v2/

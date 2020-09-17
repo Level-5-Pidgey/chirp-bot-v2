@@ -13,7 +13,7 @@ export default class CommandExecListener extends Listener {
     }
 
     //Log the command that was used and by whom.
-    public exec(message : Message, command : Command, args : any): void
+    public exec(message : Message, command : Command, args : any) : void
     {
         LoggerClient.LogCommandUsage(message, command);
     }

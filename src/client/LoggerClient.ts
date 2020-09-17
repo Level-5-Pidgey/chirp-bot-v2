@@ -1,7 +1,7 @@
 import {Logger} from "winston";
 import * as winston from "winston";
 import {Command} from "discord-akairo";
-import {Message} from "discord.js";
+import {DMChannel, Message} from "discord.js";
 
 export class LoggerClient
 {
@@ -34,7 +34,11 @@ export class LoggerClient
 
     public static LogCommandUsage(msg : Message, cmd : Command)
     {
-        this.WriteInfoLog(`${msg.author.username} (ID : ${msg.author.id}) used command ${cmd.toString()} in guild ${msg.guild.name} (${msg.guild.id.toString()})`)
+        if ( !(msg.channel instanceof DMChannel) ) {
+            this.WriteInfoLog(`${msg.author.username} (ID : ${msg.author.id}) used command ${cmd.toString()} in guild ${msg.guild.name} (${msg.guild.id.toString()})`);
+        } else {
+            this.WriteInfoLog(`${msg.author.username} (ID : ${msg.author.id}) used command ${cmd.toString()} in DMs`);
+        }
     }
 }
 

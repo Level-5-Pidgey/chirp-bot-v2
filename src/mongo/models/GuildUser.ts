@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 
 const userXPInfo = new mongoose.Schema({
-    lastMessage : { type : Date, default: Date.now },
+    lastMessageDate : { type : Date, default: Date.now },
     totalXP : { type : Number, default : 0 },
     xpThisMonth : { type : Number, default : 0 },
-    lastEarnedMOTM : { type : Date },
-    levelNick : { type : String }
+    lastEarnedMOTMDate : { type : Date },
+    sendLevelUpMessages : { type : Boolean, default : true}
 });
 
 const GuildUserModel = new mongoose.Schema({
