@@ -244,7 +244,7 @@ export class DbClient {
         return (this.GetLevelFromXP(newXP) != this.GetLevelFromXP(oldXP));
     }
 
-    private GetTotalXPRequiredForLevel(levelNum : number) : number
+    public GetTotalXPRequiredForLevel(levelNum : number) : number
     {
         let result: number = 0;
 
@@ -264,17 +264,19 @@ export class DbClient {
         return result;
     }
 
-    private GetXPToNextLevelValue(levelNum: number): number
+    public GetXPToNextLevelValue(levelNum: number): number
     {
-        return Math.floor((4.0 * (levelNum / 8.0)) *
-            (Math.pow(levelNum, (3.0 / 2.0))) +
+        const levelVal : number = Math.min(levelNum, 100);
+
+        return Math.floor((4.0 * (levelVal / 8.0)) *
+            (Math.pow(levelVal, (3.0 / 2.0))) +
             350);
     }
 
     public GetXPToNext(totalXP : number): number
     {
         let userLevel : number = this.GetLevelFromXP(totalXP);
-        const xpTotalForNext: number = this.GetTotalXPRequiredForLevel(userLevel);
+        const xpTotalForNext: number = this.GetTotalXPRequiredForLevel(userLevel + 1);
 
         return xpTotalForNext - totalXP;
     }
@@ -282,16 +284,16 @@ export class DbClient {
     public GetXPIntoLevel(totalXP : number): number
     {
         let userLevel : number = this.GetLevelFromXP(totalXP);
-        const xpTotalForNext: number = this.GetTotalXPRequiredForLevel(userLevel);
+        const xpTotalLevel: number = this.GetTotalXPRequiredForLevel(userLevel);
 
-        return totalXP - xpTotalForNext;
+        return totalXP - xpTotalLevel;
     }
 
     public GetLevelFromXP(totalXP : number) : number
     {
-        let result: number = 1;
+        let result: number = 0;
 
-        while (totalXP > this.GetTotalXPRequiredForLevel(result)) {
+        while (totalXP >= this.GetTotalXPRequiredForLevel(result + 1)) {
             result++;
         }
 

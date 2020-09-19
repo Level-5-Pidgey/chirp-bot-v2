@@ -6,7 +6,14 @@ COPY package.json ./
 
 #Installation
 RUN apk add --update \
-	&& apk add --no-cache nodejs-current nodejs-npm cairo-dev jpeg-dev pango-dev giflib-dev\
+	&& apk add --no-cache nodejs-current \
+	     nodejs-npm \
+	     cairo-dev \
+	     jpeg-dev \
+	     pango-dev \
+	     giflib-dev \
+        # defaults fonts for canvas
+       ttf-opensans ttf-dejavu ttf-droid ttf-freefont ttf-liberation ttf-ubuntu-font-family fontconfig \
 	&& apk add --no-cache --virtual .gyp git curl build-base python3 make g++  \
 	&& npm install \
 	&& apk del .gyp
