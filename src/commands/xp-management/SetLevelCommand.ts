@@ -63,7 +63,7 @@ export default class SetLevelCommand extends Command {
                         .then(async fulfilled =>
                         {
                             LoggerClient.WriteInfoLog(`Modified ${member.username}'s level in guild ${message.guild.id}, promise result : ${fulfilled.toString()}`);
-                            return message.util.send(`Successfully set ${member}'s level to *level ${levelToSet}*.`);
+                            return message.util.send(`Successfully set ${member}'s level to *${levelToSet}*.`);
                         })
                         .catch(rejection =>
                         {

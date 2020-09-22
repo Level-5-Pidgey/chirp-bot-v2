@@ -1,6 +1,7 @@
 import {GuildMember} from "discord.js";
 import CanvasTool, {Canvas, CanvasRenderingContext2D} from "canvas";
 import {LoggerClient} from "./LoggerClient";
+import {finished} from "stream";
 
 export default class RankCard
 {
@@ -13,14 +14,14 @@ export default class RankCard
     private outlineColour : string = "#000000";
     private textColour : string = "#f0f0f0";
     private secondTextColour : string = "#6e6e6e";
-    private thirdTextColour : string = "#6e6e6e";
+    private thirdTextColour : string = "#333333";
 
-    //Card Canvas Object
-    private rankCard : Canvas;
+    private defaultFontName : string = "opensans";
 
     public async RenderCard(cardMember: GuildMember, xpIntoLevel : number, xpRequiredForLevelUp : number, userLevel : number) : Promise<Buffer>
     {
         const highlightColour : string = cardMember.displayHexColor;
+        const fontName : string = this.defaultFontName;
 
         //Create canvas object
         const cardCanvas : Canvas = CanvasTool.createCanvas(this.cardWidth, this.cardHeight);
@@ -49,12 +50,10 @@ export default class RankCard
 
         //Print XP string
         const xpValueString : string = this.GenerateXPString(xpIntoLevel, xpRequiredForLevelUp, userLevel);
-        ctx.font = "30px opensans";
+        ctx.font = `30px ${fontName}`;
         const xpStringWidth : number = 930 - ctx.measureText(xpValueString).width;
-        LoggerClient.WriteInfoLog(`XP string width is ${ctx.measureText(xpValueString).width}`);
         ctx.fillStyle = this.secondTextColour;
         ctx.fillText(xpValueString, xpStringWidth, 180);
-        LoggerClient.WriteInfoLog(xpValueString);
 
         //Print Username String
         ctx.fillStyle = this.textColour;
@@ -63,15 +62,15 @@ export default class RankCard
         let shortenName = false;
 
         //Get the width of the discriminator
-        ctx.font = "35px opensans";
+        ctx.font = `35px ${fontName}`;
         const discriminatorWidth : number = ctx.measureText("#0000").width;
 
         //Reduce the size of the username font until it reaches an appropriate value
         //If the font size dips too low, cut characters off the username instead
-        ctx.font = `${fontSize}px opensans`; //Set initial text size
+        ctx.font = `${fontSize}px ${fontName}`; //Set initial text size
         while((315 + ctx.measureText(memberUsername).width + discriminatorWidth) > xpStringWidth)
         {
-            ctx.font = `${fontSize}px opensans`; //Re-scale text for width measurement
+            ctx.font = `${fontSize}px ${fontName}`; //Re-scale text for width measurement
             if(fontSize > 35)
             {
                 fontSize--;
@@ -93,13 +92,182 @@ export default class RankCard
                 memberUsername += "...";
             }
         }
-        ctx.font = `${fontSize}px opensans`;
+        ctx.font = `${fontSize}px ${fontName}`;
         ctx.fillText(memberUsername, 300, 180);
         const usernameWidth : number = ctx.measureText(memberUsername).width;
 
         //Render discriminator
-        ctx.font = "35px opensans";
+        ctx.font = `35px ${fontName}`;
         ctx.fillText(`#${cardMember.user.discriminator}`, usernameWidth + 310, 180);
+
+        //Calculate Level Text
+        let levelText : string = "";
+        if(userLevel > 500)
+        {
+            levelText = "MAXED"
+        }
+        else
+        {
+            const playerLevelRounded : number = userLevel % 100;
+            if(playerLevelRounded == 0)
+            {
+                levelText = "100";
+            }
+            else
+            {
+                levelText = playerLevelRounded.toString();
+            }
+        }
+
+        ctx.fillStyle = highlightColour;
+        //Get widths of the "LEVEL " string as well as the level number
+        ctx.font = `30px ${fontName}`;
+        const levelTextWidth : number = ctx.measureText(`LEVEL `).width;
+        ctx.font = `70px ${fontName}`;
+        const levelNumTextWidth : number = ctx.measureText(levelText).width;
+        const levelTextPos : number = 930 - (levelTextWidth + levelNumTextWidth);
+
+        //Now Render the font
+        ctx.font = `30px ${fontName}`;
+        ctx.fillText("LEVEL ", levelTextPos, 100);
+        ctx.font = `70px ${fontName}`;
+        ctx.fillText(levelText, levelTextPos + 100, 100);
+
+        //Render XP Bar
+        //XP Bar Background
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = this.outlineColour;
+        ctx.fillStyle = this.secondTextColour;
+        this.CreateRoundedRect(ctx, 294, 204, 640, 32, 10, true, false);
+        //XP Bar itself
+        const filledWidth : number = userLevel > 500 ? 640 : Math.round((xpIntoLevel / xpRequiredForLevelUp) * 640);
+        if(filledWidth > 1)
+        {
+            ctx.fillStyle = highlightColour;
+            this.CreateRoundedRect(ctx, 294, 204, filledWidth, 32, 5, true, false);
+        }
+
+        //This is aboutta get hella ugly damn
+        //XP Separators!
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = this.thirdTextColour;
+        let separatorX : number = 294.0;
+        let separatorHeight : number = 0;
+        let separatorCount : number = 0;
+
+        if(xpRequiredForLevelUp <= 1000)
+        {
+            separatorCount = (xpRequiredForLevelUp / 100);
+
+            for(let i : number = 0; i < separatorCount; i++)
+            {
+                separatorX += 640 / separatorCount;
+                if(separatorX < 934) //Display separators until the end of the bar area
+                {
+                    ctx.fillRect(Math.round(separatorX), 204, 5, 32);
+                }
+            }
+        }
+        else if (xpRequiredForLevelUp < 3000)
+        {
+            separatorCount = (xpRequiredForLevelUp / 1000);
+            let smallSeparatorCount = (separatorCount * 10);
+
+            for (let i : number = 0; i < smallSeparatorCount; i++)
+            {
+                if((i + 1) % 10 == 0)
+                {
+                    separatorHeight = 32;
+                }
+                else
+                {
+                    separatorHeight = 12;
+                }
+
+                separatorX += 640 / smallSeparatorCount;
+
+                if(separatorX < 934)
+                {
+                    ctx.fillRect(Math.round(separatorX), 204,  5, separatorHeight);
+                }
+            }
+        }
+        else if (xpRequiredForLevelUp < 10000)
+        {
+            separatorCount = (xpRequiredForLevelUp / 1000);
+            let smallSeparatorCount = (separatorCount * 4);
+
+            for (let i : number = 0; i < smallSeparatorCount; i++)
+            {
+                if((i + 1) % 4 == 0)
+                {
+                    separatorHeight = 32;
+                }
+                else
+                {
+                    separatorHeight = 12;
+                }
+
+                separatorX += 640 / smallSeparatorCount;
+
+                if(separatorX < 934)
+                {
+                    ctx.fillRect(Math.round(separatorX), 204,  5, separatorHeight);
+                }
+            }
+        }
+        else if (xpRequiredForLevelUp < 30000)
+        {
+            separatorCount = (xpRequiredForLevelUp / 10000);
+            let smallSeparatorCount = (separatorCount * 10);
+
+            for (let i : number = 0; i < smallSeparatorCount; i++)
+            {
+                if((i + 1) % 10 == 0)
+                {
+                    separatorHeight = 32;
+                }
+                else
+                {
+                    separatorHeight = 12;
+                }
+
+                separatorX += 640 / smallSeparatorCount;
+
+                if(separatorX < 934)
+                {
+                    ctx.fillRect(Math.round(separatorX), 204,  5, separatorHeight);
+                }
+            }
+        }
+        else
+        {
+            separatorCount = (xpRequiredForLevelUp / 10000);
+            let smallSeparatorCount = (separatorCount * 4);
+
+            for (let i : number = 0; i < smallSeparatorCount; i++)
+            {
+                if((i + 1) % 4 == 0)
+                {
+                    separatorHeight = 32;
+                }
+                else
+                {
+                    separatorHeight = 12;
+                }
+
+                separatorX += 640 / smallSeparatorCount;
+
+                if(separatorX < 934)
+                {
+                    ctx.fillRect(Math.round(separatorX), 204,  5, separatorHeight);
+                }
+            }
+        }
+        ctx.globalAlpha = 1.0;
+
+        //Render stroke over bar
+        this.CreateRoundedRect(ctx, 294, 204, 640, 32, 10, false, true);
 
         //Finally, render as a buffer and return
         return new Promise<Buffer>(async function (resolve) {
@@ -119,7 +287,7 @@ export default class RankCard
             //First part of the string is the xp into the level.
             if(intoLevel > 1000)
             {
-                xpString += parseFloat(Math.round(((intoLevel / 1000.0) * 100.0) / 100.0).toFixed(2)) + "K";
+                xpString += parseFloat((((intoLevel / 1000.0) * 100.0) / 100.0).toFixed(2)) + "K";
             }
             else
             {
@@ -130,7 +298,7 @@ export default class RankCard
             //Second part is the xp required to level up.
             if(levelUpVal > 1000)
             {
-                xpString += parseFloat(Math.round(((levelUpVal / 1000.0) * 100.0) / 100.0).toFixed(2)) + "K";
+                xpString += parseFloat((((levelUpVal / 1000.0) * 100.0) / 100.0).toFixed(2)) + "K";
             }
             else
             {
@@ -142,5 +310,37 @@ export default class RankCard
         }
 
         return xpString;
+    }
+
+    //Credit to Juan Mendes
+    //https://stackoverflow.com/a/3368118
+    private CreateRoundedRect(ctx : CanvasRenderingContext2D, x : number, y : number, width : number, height : number, radius? : number, fill? : boolean, stroke? : boolean)
+    {
+        //Create Radius Object
+        let radObj = radius != null ? radius : 0;
+
+        //Create Path
+        ctx.beginPath();
+        ctx.moveTo(x + radObj, y);
+        ctx.lineTo(x + width - radObj, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radObj);
+        ctx.lineTo(x + width, y + height - radObj);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radObj, y + height);
+        ctx.lineTo(x + radObj, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radObj);
+        ctx.lineTo(x, y + radObj);
+        ctx.quadraticCurveTo(x, y, x + radObj, y);
+        ctx.closePath();
+
+        //Fill or add stroke if enabled
+        if(fill)
+        {
+            ctx.fill();
+        }
+
+        if(stroke)
+        {
+            ctx.stroke();
+        }
     }
 }

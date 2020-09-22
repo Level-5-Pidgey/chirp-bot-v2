@@ -9,11 +9,13 @@ const userXPInfo = new mongoose.Schema({
 });
 
 const GuildUserModel = new mongoose.Schema({
-    userID : { type: String, unique : true, required: true },
+    userID : { type: String, required: true },
+    userGuild : { type: String, required: true },
     xpInfo : {
         type: userXPInfo,
         default: {}
     }
 });
+GuildUserModel.index({userID : 1, userGuild : 1}, {unique : true});
 
 export default mongoose.model("User", GuildUserModel);

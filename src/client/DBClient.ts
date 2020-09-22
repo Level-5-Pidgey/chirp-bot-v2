@@ -5,9 +5,10 @@ import {Guild, GuildChannel, GuildMember, Message} from "discord.js";
 import GuildUserModel from "../mongo/models/GuildUser";
 import MongoGuild from "../mongo/models/MongoGuild";
 import {Mongoose} from "mongoose";
+import XPData from "./XPData";
 
 export class DbClient {
-    private maxXPVal : number = this.GetTotalXPRequiredForLevel(501);
+    private maxXPVal : number = new XPData(0).GetTotalXPRequiredForLevel(501);
 
     constructor() {
         //Connect to the mongo database, or terminate the bot if the connection fails.
@@ -47,12 +48,12 @@ export class DbClient {
     public async FindOrCreateUserObject(memberToChange: GuildMember)
     {
         return new Promise<any>(async function (resolve, reject) {
-            let userData = await GuildUserModel.findOne({userID: `${memberToChange.id}-${memberToChange.guild.id}`});
+            let userData = await GuildUserModel.findOne({userID: memberToChange.id, userGuild: memberToChange.guild.id});
 
             if ( userData ) {
                 resolve(userData);
             } else {
-                userData = new GuildUserModel({userID: `${memberToChange.id}-${memberToChange.guild.id}`});
+                userData = new GuildUserModel({userID: memberToChange.id, userGuild: memberToChange.guild.id});
                 await userData.save();
 
                 resolve(userData);
@@ -75,9 +76,9 @@ export class DbClient {
             });
         }
 
-        //Calculate updated XP of the user
+        //Create new XPData object with the calculated XP amount
         //Prevent the XP amount from breaching past level 501.
-        const calculatedXP : number = Math.min(Math.max(0, (mongoUser.xpInfo.totalXP + amountToModify)), this.maxXPVal);
+        const updatedXP : XPData = new XPData(Math.min(Math.max(0, (mongoUser.xpInfo.totalXP + amountToModify)), this.maxXPVal));
 
         //Update their last earned date.
         mongoUser.xpInfo.lastMessage = Date.now();
@@ -88,12 +89,12 @@ export class DbClient {
         }
 
         //Before applying XP, check if the user would level up as a result of this XP change.
-        if(this.CheckIfLevelChanges(mongoUser.xpInfo.totalXP, calculatedXP))
+        if(this.CheckIfLevelChanges(mongoUser.xpInfo.totalXP, updatedXP.userXP))
         {
             //Send them a DM if they allow it in their user settings.
             if(mongoUser.xpInfo.sendLevelUpMessages)
             {
-                memberToChange.send(`You have levelled up in ${memberToChange.guild.name}! You have reached level ${this.GetLevelFromXP(calculatedXP)}!`)
+                memberToChange.send(`You have levelled up in ${memberToChange.guild.name}! You have reached level ${updatedXP.userLevel}!`)
                     .then(fulfilled => {
                         LoggerClient.WriteInfoLog(`Successfully sent level up message to ${memberToChange.displayName}, promise returned : ${fulfilled.toString()}`);
                     })
@@ -106,7 +107,7 @@ export class DbClient {
         }
 
         //Apply XP with multipliers
-        mongoUser.xpInfo.totalXP = calculatedXP;
+        mongoUser.xpInfo.totalXP = updatedXP.userXP;
 
         //Apply base XP to monthly total, if enabled
         if ( countsTowardsMonthly ) {
@@ -122,6 +123,7 @@ export class DbClient {
     {
         const mongoUser: any = await this.FindOrCreateUserObject(memberToChange);
         const setVal : number = Math.min(this.maxXPVal, value);
+        const userXPData : XPData = new XPData(setVal);
 
         //Before applying XP, check if the user would level up as a result of this XP change.
         if(this.CheckIfLevelChanges(mongoUser.xpInfo.totalXP, setVal))
@@ -129,7 +131,7 @@ export class DbClient {
             //Send them a DM if they allow it in their user settings.
             if(mongoUser.xpInfo.sendLevelUpMessages)
             {
-                memberToChange.send(`You have levelled up in ${memberToChange.guild.name}! You have reached level ${this.GetLevelFromXP(setVal)}!`)
+                memberToChange.send(`You have levelled up in ${memberToChange.guild.name}! You have reached level ${userXPData.userLevel}!`)
                     .then(fulfilled => {
                         LoggerClient.WriteInfoLog(`Successfully sent level up message to ${memberToChange.displayName}, promise returned : ${fulfilled.toString()}`);
                     })
@@ -154,8 +156,8 @@ export class DbClient {
     public async ModifyLevel(memberToChange : GuildMember, desiredLevel : number, updateMonthly? : boolean) : Promise<boolean>
     {
         const mongoUser : any = await this.FindOrCreateUserObject(memberToChange);
-        const currentLevel : number = this.GetLevelFromXP(mongoUser.xpInfo.totalXP);
-        const desiredXP : number = Math.min(this.GetTotalXPRequiredForLevel(Math.max(currentLevel + desiredLevel, 1)), this.maxXPVal);
+        const userXPData : XPData = new XPData(mongoUser.xpInfo.totalXP);
+        const desiredXP : number = Math.min(userXPData.GetTotalXPRequiredForLevel(Math.max(userXPData.userXP + desiredLevel, 1)), this.maxXPVal);
 
         //Update their last earned date.
         mongoUser.xpInfo.lastMessage = Date.now();
@@ -165,14 +167,18 @@ export class DbClient {
             mongoUser.xpInfo.xpThisMonth = 0;
         }
 
+        //Set total XP to desired amount.
+        mongoUser.xpInfo.totalXP = desiredXP;
+        userXPData.userXP = desiredXP;
+
         //Before applying XP, check if the user's level would change.
         //It absolutely should if you're using the command properly, but it's better to account for all scenarios!
-        if(currentLevel != desiredLevel)
+        if(userXPData.userLevel != desiredLevel)
         {
             //Send them a DM if they allow it in their user settings.
             if(mongoUser.xpInfo.sendLevelUpMessages)
             {
-                memberToChange.send(`Your level in ${memberToChange.guild.name} has been set to ${this.GetLevelFromXP(desiredXP)}!`)
+                memberToChange.send(`Your level in ${memberToChange.guild.name} has been set to ${userXPData.userXP}!`)
                     .then(fulfilled => {
                         LoggerClient.WriteInfoLog(`Successfully sent level set message to ${memberToChange.displayName}, promise returned : ${fulfilled.toString()}`);
                     })
@@ -183,9 +189,6 @@ export class DbClient {
                     });
             }
         }
-
-        //Set total XP to desired amount.
-        mongoUser.xpInfo.totalXP = desiredXP;
 
         //Apply base XP to monthly total, if enabled
         if ( updateMonthly ) {
@@ -200,7 +203,8 @@ export class DbClient {
     public async SetLevel(memberToChange: GuildMember, value: number, updateMonthly?: boolean) : Promise<boolean>
     {
         const mongoUser : any = await this.FindOrCreateUserObject(memberToChange);
-        const desiredXP : number = Math.min(this.GetTotalXPRequiredForLevel(Math.max(value, 1)), this.maxXPVal);
+        const userXPData : XPData = new XPData(mongoUser.xpInfo.totalXP);
+        const desiredXP : number = Math.min(userXPData.GetTotalXPRequiredForLevel(Math.max(value, 1)), this.maxXPVal);
 
         //Update their last earned date.
         mongoUser.xpInfo.lastMessage = Date.now();
@@ -210,10 +214,14 @@ export class DbClient {
             mongoUser.xpInfo.xpThisMonth = 0;
         }
 
+        //Set total XP to desired amount and update XPData object.
+        mongoUser.xpInfo.totalXP = desiredXP;
+        userXPData.userXP = desiredXP;
+
         //Send them a DM about their level change if they allow it in their user settings.
         if(mongoUser.xpInfo.sendLevelUpMessages)
         {
-            memberToChange.send(`Your level in ${memberToChange.guild.name} has been set to ${this.GetLevelFromXP(desiredXP)}!`)
+            memberToChange.send(`Your level in ${memberToChange.guild.name} has been set to ${userXPData.userLevel}!`)
                 .then(value =>
                 {
                     //Send logger message about successful promise resolution.
@@ -225,9 +233,6 @@ export class DbClient {
                     LoggerClient.WriteErrorLog(`Couldn't message user ${memberToChange.displayName} their level-up message, promise returned : ${rejectReason.toString()}`);
                 });
         }
-
-        //Set total XP to desired amount.
-        mongoUser.xpInfo.totalXP = desiredXP;
 
         //Apply base XP to monthly total, if enabled
         if ( updateMonthly ) {
@@ -241,64 +246,9 @@ export class DbClient {
 
     private CheckIfLevelChanges(oldXP : number, newXP : number) : boolean
     {
-        return (this.GetLevelFromXP(newXP) != this.GetLevelFromXP(oldXP));
-    }
-
-    public GetTotalXPRequiredForLevel(levelNum : number) : number
-    {
-        let result: number = 0;
-
-        for (let i = 1; i < levelNum; i++) {
-            if(i <= 100)
-            {
-                result += this.GetXPToNextLevelValue(i);
-            }
-            else
-            {
-                //After level 100, the xp per level should cap out.
-                //Prevent any more exponential shenanigans and keep the XP requirement per level fair
-                result += this.GetXPToNextLevelValue(100);
-            }
-        }
-
-        return result;
-    }
-
-    public GetXPToNextLevelValue(levelNum: number): number
-    {
-        const levelVal : number = Math.min(levelNum, 100);
-
-        return Math.floor((4.0 * (levelVal / 8.0)) *
-            (Math.pow(levelVal, (3.0 / 2.0))) +
-            350);
-    }
-
-    public GetXPToNext(totalXP : number): number
-    {
-        let userLevel : number = this.GetLevelFromXP(totalXP);
-        const xpTotalForNext: number = this.GetTotalXPRequiredForLevel(userLevel + 1);
-
-        return xpTotalForNext - totalXP;
-    }
-
-    public GetXPIntoLevel(totalXP : number): number
-    {
-        let userLevel : number = this.GetLevelFromXP(totalXP);
-        const xpTotalLevel: number = this.GetTotalXPRequiredForLevel(userLevel);
-
-        return totalXP - xpTotalLevel;
-    }
-
-    public GetLevelFromXP(totalXP : number) : number
-    {
-        let result: number = 0;
-
-        while (totalXP >= this.GetTotalXPRequiredForLevel(result + 1)) {
-            result++;
-        }
-
-        //Increment the result by one, since you can't really be "level 0".
-        return result;
+        const oldXPData : XPData = new XPData(oldXP);
+        const newXPData : XPData = new XPData(newXP);
+        return (oldXPData.userLevel != newXPData.userLevel);
     }
 
     public async AddXPListChannel(channelToAdd: GuildChannel): Promise<boolean>

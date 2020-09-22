@@ -2,6 +2,7 @@ import { Command } from "discord-akairo";
 import { GuildMember, Message, MessageAttachment } from "discord.js";
 import RankCard from "../../client/RankCard";
 import {LoggerClient} from "../../client/LoggerClient";
+import XPData from "../../client/XPData";
 
 export default class RankCardCommand extends Command {
     public constructor() {
@@ -37,23 +38,16 @@ export default class RankCardCommand extends Command {
     {
         const memberId : string = member == null ? message.member.id : member.id;
         let memberToCheck : GuildMember;
-        let xpIntoLevel : number = 0;
-        let xpRequiredForLevelUp : number = 0;
-        let userLevel : number = 1;
+        let userXPData : XPData;
 
         //Try fetch the member requested for the rank card.
         try
         {
             memberToCheck = await message.guild.members.fetch(memberId);
 
-            //Get member mongo object
+            //Get member mongo object and their XP data
             const mongoUser : any = await this.client.dbClient.FindOrCreateUserObject(memberToCheck);
-
-            //Additionally get details about their XP progress
-            xpIntoLevel = await this.client.dbClient.GetXPIntoLevel(mongoUser.xpInfo.totalXP);
-            userLevel = await this.client.dbClient.GetLevelFromXP(mongoUser.xpInfo.totalXP);
-
-            xpRequiredForLevelUp = await this.client.dbClient.GetXPToNextLevelValue(userLevel + 1);
+            userXPData = new XPData(mongoUser.xpInfo.totalXP);
         }
         catch (e) {
             //Log rejection and print message for the user.
@@ -62,11 +56,10 @@ export default class RankCardCommand extends Command {
         }
 
         //Now we have the member, render the rank card!
-
         message.util.send(`Our code monkeys are generating your rank card. Hang on a sec...`)
             .then(async resolvedMessage =>
                 {
-                    await new RankCard().RenderCard(memberToCheck, xpIntoLevel, xpRequiredForLevelUp, userLevel)
+                    await new RankCard().RenderCard(memberToCheck, userXPData.xpIntoLevel, userXPData.xpToLevel, userXPData.userLevel)
                         .then(renderedCard =>
                         {
                             //Generate a message attachment with the card image.
