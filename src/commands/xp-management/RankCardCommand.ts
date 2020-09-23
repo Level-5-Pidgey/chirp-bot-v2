@@ -39,7 +39,7 @@ export default class RankCardCommand extends Command {
         const memberId : string = member == null ? message.member.id : member.id;
         let memberToCheck : GuildMember;
         let userXPData : XPData;
-
+        let leaderboardPos : number;
         //Try fetch the member requested for the rank card.
         try
         {
@@ -48,6 +48,10 @@ export default class RankCardCommand extends Command {
             //Get member mongo object and their XP data
             const mongoUser : any = await this.client.dbClient.FindOrCreateUserObject(memberToCheck);
             userXPData = new XPData(mongoUser.xpInfo.totalXP);
+
+            //Test, get leaderboard position
+            leaderboardPos = await this.client.dbClient.GetLeaderboardPositionOfUser(memberToCheck);
+            LoggerClient.WriteInfoLog(`User ID : ${memberToCheck.id}, is #${leaderboardPos} on the leaderboard`);
         }
         catch (e) {
             //Log rejection and print message for the user.
@@ -59,7 +63,7 @@ export default class RankCardCommand extends Command {
         message.util.send(`Our code monkeys are generating your rank card. Hang on a sec...`)
             .then(async resolvedMessage =>
                 {
-                    await new RankCard().RenderCard(memberToCheck, userXPData.xpIntoLevel, userXPData.xpToLevel, userXPData.userLevel)
+                    await new RankCard().RenderCard(memberToCheck, userXPData.xpIntoLevel, userXPData.xpToLevel, userXPData.userLevel, leaderboardPos)
                         .then(renderedCard =>
                         {
                             //Generate a message attachment with the card image.

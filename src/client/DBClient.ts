@@ -253,7 +253,7 @@ export class DbClient {
 
     public async AddXPListChannel(channelToAdd: GuildChannel): Promise<boolean>
     {
-        let guildObject: any = await this.FindOrCreateGuildObject(channelToAdd.guild);
+        let guildObject : any = await this.FindOrCreateGuildObject(channelToAdd.guild);
         LoggerClient.WriteInfoLog(`${guildObject.guildXPSettings.xpChannelList}`);
         const alreadyExists: boolean = guildObject.guildXPSettings.xpChannelList.includes(channelToAdd.id.toString());
 
@@ -266,7 +266,7 @@ export class DbClient {
 
     public async RemoveXPListChannel(channelToAdd: GuildChannel): Promise<boolean>
     {
-        let guildObject: any = await this.FindOrCreateGuildObject(channelToAdd.guild);
+        let guildObject : any = await this.FindOrCreateGuildObject(channelToAdd.guild);
         const channelExists: boolean = guildObject.guildXPSettings.xpChannelList.includes(channelToAdd.id.toString());
 
         if ( channelExists ) {
@@ -355,5 +355,41 @@ export class DbClient {
         let guildObject: any = await this.FindOrCreateGuildObject(guild);
 
         return Math.floor(Math.random() * (guildObject.guildXPSettings.maxXPPerMessage - guildObject.guildXPSettings.minXPPerMessage) + guildObject.guildXPSettings.minXPPerMessage);
+    }
+
+    public async GenerateLeaderboard(guild : Guild) : Promise<Map<string, XPData>>
+    {
+        let resultMap : Map<string, XPData> = new Map<string, XPData>();
+        let leaderboardUsers : any[] = await GuildUserModel.find({userGuild : guild.id.toString()})
+            .sort({"xpInfo.totalXP" : -1})
+            .exec();
+
+        //Now that we have a list of results, add them to the map
+        leaderboardUsers.forEach(mongoUser => {
+            resultMap.set(mongoUser.userID, new XPData(mongoUser.xpInfo.totalXP));
+        });
+
+        //Return the map once done
+        return resultMap;
+    }
+
+    public async GetLeaderboardPositionOfUser(memberToCheck: GuildMember) : Promise<number>
+    {
+        let result : number = 0;
+        let leaderboardUsers : any[] = await GuildUserModel.find({userGuild : memberToCheck.guild.id.toString()})
+            .sort({"xpInfo.totalXP" : -1})
+            .exec();
+
+        //Now that we have a list of results, loop through and add to the result count until we get to the user being searched for
+        for(let i : number = 0; i < leaderboardUsers.length; i++)
+        {
+            result++;
+            if(leaderboardUsers[i].userID.toString() == memberToCheck.id.toString())
+            {
+                break;
+            }
+        }
+
+        return result;
     }
 }
