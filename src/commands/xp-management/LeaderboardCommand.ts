@@ -1,8 +1,9 @@
-import {Command} from "discord-akairo";
-import {GuildMember, Message, TextChannel} from "discord.js";
-import {LoggerClient} from "../../client/LoggerClient";
+import { Command } from "discord-akairo";
+import {Message, MessageEmbed, TextChannel} from "discord.js";
+import { LoggerClient } from "../../client/LoggerClient";
 import XPData from "../../client/XPData";
-import {embedColour, prefix} from "../../config/config";
+import { embedColour } from "../../config/config";
+import { Menu } from "discord.js-menu";
 
 export default class LeaderboardCommand extends Command {
     public constructor() {
@@ -38,55 +39,65 @@ export default class LeaderboardCommand extends Command {
     {
         if (message.channel instanceof TextChannel)
         {
-            try
-            {
-                const pageToGet : number = leaderboardPage == null ? this.RoundToNearest10Down(await this.client.dbClient.GetLeaderboardPositionOfUser(message.member)) : Math.max(1, leaderboardPage);
+            this.client.dbClient.GetLeaderboardPositionOfUser(message.member)
+                .then(async leaderboardPosition =>
+                {
+                    const usersPerPage : number = 2;
+                    let pageToGet : number = leaderboardPage == null ? this.RoundToNearest10Down(leaderboardPosition) + 1 : leaderboardPage;
 
-                //Print the leaderboard!
-                message.util.send(await this.GenerateLeaderboardEmbed(pageToGet, message))
-                    .then( leaderboardEmbedFulfilled =>
-                        {
-                            leaderboardEmbedFulfilled.react("👈").then(() => leaderboardEmbedFulfilled.react("👉"));
-
-                            const reactionFilter = (reaction, user) =>
+                    if (pageToGet > 0)
+                    {
+                        let leaderboardMenu = new Menu(message.channel, message.author.id, [
                             {
-                                return ["👈", "👉"].includes(reaction.emoji.name) && user.id === message.author.id;
-                            };
+                                name: "defaultPage",
+                                content : await this.GenerateLeaderboardEmbed(pageToGet, usersPerPage, message),
+                                reactions: {
+                                    "👈" : "previousPage",
+                                    "👉" : "nextPage"
+                                }
+                            },
+                            {
+                                name: "nextPage",
+                                content : await this.GenerateLeaderboardEmbed(pageToGet + 1, usersPerPage, message),
+                                reactions: {
+                                    "👈" : "previousPage",
+                                    "👉" : "nextPage"
+                                }
+                            },
+                            {
+                                name: "previousPage",
+                                content : await this.GenerateLeaderboardEmbed(Math.max(1, pageToGet--), usersPerPage, message),
+                                reactions: {
+                                    "👈" : "previousPage",
+                                    "👉" : "nextPage"
+                                }
+                            }
+                        ], 30000);
 
-                            leaderboardEmbedFulfilled.awaitReactions(reactionFilter, { max : 1, time: 60000, errors : [ "time" ]})
-                                .then(collected =>
-                                {
-                                    const reaction = collected.first();
+                        //Generate the Embed!
+                        leaderboardMenu.start();
 
-                                    if(reaction.emoji.name === "👈")
-                                    {
-                                        this.GenerateLeaderboardEmbed(Math.max(1, pageToGet - 1), message)
-                                            .then(updatedLeaderboardEmbed =>
-                                            {
-                                                leaderboardEmbedFulfilled.edit("", updatedLeaderboardEmbed);
-                                            });
-                                    }
-                                    else
-                                    {
-                                        this.GenerateLeaderboardEmbed(pageToGet + 1, message)
-                                            .then(updatedLeaderboardEmbed =>
-                                            {
-                                                leaderboardEmbedFulfilled.edit("", updatedLeaderboardEmbed);
-                                            });
-                                    }
-                                })
-                                .catch(collected =>
-                                {
-                                    //Return the finalised leaderboard embed once done
-                                    return collected;
-                                });
-                        }
-                    );
+                        //Update the pageToGet variable as pages are chosen.
+                        leaderboardMenu.on('pageChange', destinationPage =>
+                        {
+                           if(destinationPage.name == "nextPage")
+                           {
+                               pageToGet++;
+                           }
 
-            }
-            catch (e) {
-                LoggerClient.WriteErrorLog(`An error occurred when attempting to generate a leaderboard in the server ${message.guild.name} (${message.guild.id}), promise returned : ${e.toString()}`);
-            }
+                           if(destinationPage.name == "previousPage")
+                           {
+                               pageToGet = Math.max(1, pageToGet--);
+                           }
+
+                           LoggerClient.WriteInfoLog(`Page To Get has been updated to ${pageToGet}`);
+                        });
+                    }
+                    else
+                    {
+                        return message.util.send("Please enter a page number greater than 0!");
+                    }
+                });
         }
         else
         {
@@ -94,11 +105,10 @@ export default class LeaderboardCommand extends Command {
         }
     }
 
-    private async GenerateLeaderboardEmbed(pageToGet : number, message : Message)
+    private async GenerateLeaderboardEmbed(pageToGet : number, usersPerPage : number, message : Message) : Promise<MessageEmbed>
     {
-        const usersPerPage : number = 1;
-        const minIndex: number = Math.max(1, pageToGet * usersPerPage);
-        const maxIndex: number = Math.max(1, minIndex + (usersPerPage - 1));
+        const maxIndex: number = Math.max(1, (pageToGet * usersPerPage));
+        const minIndex: number = Math.max(1, maxIndex - usersPerPage + 1);
         const leaderboardMap: Map<string, XPData> = await this.client.dbClient.GenerateLeaderboard(message.guild);
 
         LoggerClient.WriteInfoLog(`Page entered was ${pageToGet}, minIndex is ${minIndex}, max index would be ${maxIndex}`);
