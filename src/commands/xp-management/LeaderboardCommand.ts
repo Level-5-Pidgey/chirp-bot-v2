@@ -42,14 +42,14 @@ export default class LeaderboardCommand extends Command {
             this.client.dbClient.GetLeaderboardPositionOfUser(message.member)
                 .then(async leaderboardPosition =>
                 {
-                    const usersPerPage : number = 2;
-                    let pageToGet : number = leaderboardPage == null ? this.RoundToNearest10Down(leaderboardPosition) + 1 : leaderboardPage;
+                    const usersPerPage : number = 1;
+                    let pageToGet : number = leaderboardPage == null ? LeaderboardCommand.RoundToNearest10Down(leaderboardPosition) + 1 : leaderboardPage;
 
                     if (pageToGet > 0)
                     {
                         let leaderboardMenu = new Menu(message.channel, message.author.id, [
                             {
-                                name: "defaultPage",
+                                name: "nextPage",
                                 content : await this.GenerateLeaderboardEmbed(pageToGet, usersPerPage, message),
                                 reactions: {
                                     "👈" : "previousPage",
@@ -57,16 +57,7 @@ export default class LeaderboardCommand extends Command {
                                 }
                             },
                             {
-                                name: "nextPage",
-                                content : await this.GenerateLeaderboardEmbed(pageToGet + 1, usersPerPage, message),
-                                reactions: {
-                                    "👈" : "previousPage",
-                                    "👉" : "nextPage"
-                                }
-                            },
-                            {
                                 name: "previousPage",
-                                content : await this.GenerateLeaderboardEmbed(Math.max(1, pageToGet--), usersPerPage, message),
                                 reactions: {
                                     "👈" : "previousPage",
                                     "👉" : "nextPage"
@@ -80,15 +71,19 @@ export default class LeaderboardCommand extends Command {
                         //Update the pageToGet variable as pages are chosen.
                         leaderboardMenu.on('pageChange', destinationPage =>
                         {
-                           if(destinationPage.name == "nextPage")
+                           if(destinationPage.name === "nextPage")
                            {
                                pageToGet++;
                            }
-
-                           if(destinationPage.name == "previousPage")
+                           else if(destinationPage.name === "previousPage")
                            {
-                               pageToGet = Math.max(1, pageToGet--);
+                               pageToGet = Math.max(1, pageToGet - 1);
                            }
+
+                           this.GenerateLeaderboardEmbed(pageToGet, usersPerPage, message).then(updatedPage =>
+                               {
+                                   destinationPage.content = updatedPage;
+                               });
 
                            LoggerClient.WriteInfoLog(`Page To Get has been updated to ${pageToGet}`);
                         });
@@ -111,7 +106,6 @@ export default class LeaderboardCommand extends Command {
         const minIndex: number = Math.max(1, maxIndex - usersPerPage + 1);
         const leaderboardMap: Map<string, XPData> = await this.client.dbClient.GenerateLeaderboard(message.guild);
 
-        LoggerClient.WriteInfoLog(`Page entered was ${pageToGet}, minIndex is ${minIndex}, max index would be ${maxIndex}`);
         let leaderboardResultArray: Array<string> = [];
         const leaderboardEmbed = this.client.util.embed()
             .setColor(embedColour);
@@ -125,7 +119,7 @@ export default class LeaderboardCommand extends Command {
                     if ( currentIndex >= minIndex && currentIndex <= maxIndex ) {
                         //We're in the 10 allowed entries of the leaderboard, so we can start obtaining users and printing them!
                         if ( resolvedMember != null ) {
-                            leaderboardResultArray.push(`${this.GetLeaderboardIndexString(currentIndex)} : ${resolvedMember} — (__Level__ : **${value.userLevel}**, __XP__ : **${value.userXP.toLocaleString('en')})**`);
+                            leaderboardResultArray.push(`${LeaderboardCommand.GetLeaderboardIndexString(currentIndex)} : ${resolvedMember} — (__Level__ : **${value.userLevel}**, __XP__ : **${value.userXP.toLocaleString('en')})**`);
                         }
                     }
                 });
@@ -142,7 +136,7 @@ export default class LeaderboardCommand extends Command {
         return leaderboardEmbed;
     }
 
-    private GetLeaderboardIndexString(currentIndex : number) : string
+    private static GetLeaderboardIndexString(currentIndex : number) : string
     {
         switch (currentIndex) {
             case 1:
@@ -156,7 +150,7 @@ export default class LeaderboardCommand extends Command {
         }
     }
 
-    private RoundToNearest10Down(val : number) : number
+    private static RoundToNearest10Down(val : number) : number
     {
         return (Math.floor(val / 10) * 10);
     }
