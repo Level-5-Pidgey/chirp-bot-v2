@@ -26,9 +26,9 @@ export default class XPChannelToggleCommand extends Command {
     public *args(): object {
         const method = yield {
             type: [
-                ["xpt-add", "add", "add-channel", "add-to-list", "a", "i"],
-                ["xpt-remove", "remove", "remove-channel", "remove-from-list", "d", "r"],
-                ["xpt-toggle", "mode", "toggle-mode", "m"],
+                ["xpt-add", "add-channel", "add-to-list", "ac", "ic"],
+                ["xpt-remove", "remove-channel", "remove-from-list", "dc", "rc"],
+                ["xpt-toggle", "toggle-mode", "m"],
             ],
             otherwise : async (message : Message) => {
                 if (!(message.channel instanceof DMChannel))

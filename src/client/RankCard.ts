@@ -55,7 +55,7 @@ export default class RankCard
 
     private RenderAvatar(ctx: CanvasRenderingContext2D, userAvatar)
     {
-//Draw avatar
+        //Draw avatar
         //Start with a circular cutout for the avatar
         ctx.beginPath();
         ctx.arc(150, 150, 100, 0, Math.PI * 2, true);
@@ -198,7 +198,6 @@ export default class RankCard
 
     private CreateXPBarSeparators(ctx: CanvasRenderingContext2D, xpRequiredForLevelUp: number)
     {
-
         ctx.globalAlpha = 0.4;
         ctx.fillStyle = this.thirdTextColour;
         let separatorX: number = 294.0;

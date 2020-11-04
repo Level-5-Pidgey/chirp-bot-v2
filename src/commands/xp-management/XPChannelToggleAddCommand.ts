@@ -7,7 +7,7 @@ export default class XPChannelToggleAddCommand extends Command {
     public constructor() {
         super("xpt-add",
             {
-                aliases : ["add", "add-channel", "add-to-list", "a", "i"],
+                aliases : ["add-channel", "add-to-list", "ac", "ic"],
                 args:
                     [
                         {

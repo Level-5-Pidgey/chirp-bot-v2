@@ -17,7 +17,6 @@ const staffSettings = new mongoose.Schema({
 
 const MongoGuild = new mongoose.Schema({
     guildID : { type : String, unique : true, required: true },
-    guildPrefix : { type : String, default : prefix },
     guildXPSettings : {
         type : xpSettings,
         default : { }

@@ -7,7 +7,7 @@ export default class XPChannelToggleRemoveCommand extends Command {
     public constructor() {
         super("xpt-remove",
             {
-                aliases : ["remove", "remove-channel", "remove-from-list", "d"],
+                aliases : ["remove-channel", "remove-from-list", "dc", "rc"],
                 args:
                     [
                         {

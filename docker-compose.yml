@@ -5,8 +5,6 @@ services:
   depends_on:
     - "mongo"
   restart: always
-  ports:
-    - '9229:9229'
  mongo:
   image: "mongo"
   volumes:

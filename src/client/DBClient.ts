@@ -1,7 +1,7 @@
 import mongoose = require("mongoose");
 import {mongoDBName, owners} from "../config/config";
 import {LoggerClient} from "./LoggerClient";
-import {Guild, GuildChannel, GuildMember, Message} from "discord.js";
+import {Guild, GuildChannel, GuildMember, Message, Role} from "discord.js";
 import GuildUserModel from "../mongo/models/GuildUser";
 import MongoGuild from "../mongo/models/MongoGuild";
 import {Mongoose} from "mongoose";
@@ -71,7 +71,7 @@ export class DbClient {
 
         if ( applyMultipliers ) //If the multipliers apply, calculate the final amount by the roles of the user
         {
-            this.GetMultipliers(memberToChange).then(value => {
+            this.GetMultipliersForMember(memberToChange).then(value => {
                 amountToModify *= value;
             });
         }
@@ -254,7 +254,6 @@ export class DbClient {
     public async AddXPListChannel(channelToAdd: GuildChannel): Promise<boolean>
     {
         let guildObject : any = await this.FindOrCreateGuildObject(channelToAdd.guild);
-        LoggerClient.WriteInfoLog(`${guildObject.guildXPSettings.xpChannelList}`);
         const alreadyExists: boolean = guildObject.guildXPSettings.xpChannelList.includes(channelToAdd.id.toString());
 
         //Add the entry to the array if it doesn't already exist.
@@ -289,6 +288,47 @@ export class DbClient {
         });
     }
 
+    public async AddMultiplierRole(roleToAdd : Role, multiplier : number): Promise<boolean>
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToAdd.guild);
+        const multiplierObject : { RoleId : string, RoleMultiplier : number } =
+            {
+                RoleId : roleToAdd.id.toString(),
+                RoleMultiplier : multiplier
+            };
+
+        const alreadyExists: boolean = guildObject.guildXPSettings.xpMultiplierRoles.filter(x => x.RoleId === roleToAdd.id.toString()).length > 0;
+
+        //Add the entry to the array if it doesn't already exist.
+        if ( !alreadyExists ) {
+            guildObject.guildXPSettings.xpMultiplierRoles.push(multiplierObject);
+            return guildObject.save();
+        }
+    }
+
+    public async RemoveMultiplierRole(roleToRemove : Role)
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToRemove.guild);
+        const alreadyExists: boolean = guildObject.guildXPSettings.xpMultiplierRoles.filter(x => x.RoleId === roleToRemove.id.toString()).length > 0;
+
+        if ( alreadyExists ) {
+            guildObject.guildXPSettings.xpMultiplierRoles = guildObject.guildXPSettings.xpMultiplierRoles.filter(x => x.RoleId !==
+                roleToRemove.id.toString());
+            return guildObject.save();
+        } else {
+            //If the channel does not exist resolve this function as false/unsuccessful.
+            return new Promise<boolean>(async function (resolve, reject) {
+                resolve(false);
+            });
+        }
+    }
+
+    public async GetMultiplierRoles(guildToCheck : Guild) : Promise<Array<{ RoleId : string, RoleMultiplier : number }>>
+    {
+        const guildObject : any = await this.FindOrCreateGuildObject(guildToCheck);
+        return guildObject.guildXPSettings.xpMultiplierRoles;
+    }
+
     public async IsXPListModeBlackList(guildToCheck: Guild): Promise<boolean>
     {
         const guildObj: any = await this.FindOrCreateGuildObject(guildToCheck);
@@ -318,21 +358,24 @@ export class DbClient {
         return guildObject.save();
     }
 
-    private async GetMultipliers(multiplierUser: GuildMember): Promise<number>
+    public async GetMultipliersForMember(multiplierUser: GuildMember): Promise<number>
     {
         let resultMulti: number = 1.0;
-        let guildObject: any = await this.FindOrCreateGuildObject(multiplierUser.guild);
-
-        //Skip ahead if there's no values in the array.
-        if ( guildObject.guildXPSettings.xpMultiplierRoles.length > 0 ) {
-            guildObject.guildXPSettings.xpMultiplierRoles.forEach(value => {
-                if ( multiplierUser.roles.cache.has(value.roleID) ) {
-                    resultMulti *= value.roleValue;
+        await this.GetMultiplierRoles(multiplierUser.guild)
+            .then(multiplierRolesArray =>
+                {
+                    //Skip ahead if there's no values in the array.
+                    if ( multiplierRolesArray.length > 0 ) {
+                        multiplierRolesArray.forEach(value => {
+                            if ( multiplierUser.roles.cache.has(value.RoleId) ) {
+                                resultMulti *= value.RoleMultiplier;
+                            }
+                        });
+                    }
                 }
-            });
-        }
+            );
 
-        return resultMulti
+        return resultMulti;
     }
 
     public async CanUseStaffCommands(memberToCheck: GuildMember): Promise<boolean>
