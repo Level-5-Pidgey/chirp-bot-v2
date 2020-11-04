@@ -64,7 +64,7 @@ export class DbClient {
     public async ModifyXP(memberToChange: GuildMember,
                           preMultiAmount: number,
                           applyMultipliers?: boolean,
-                          countsTowardsMonthly?: boolean): Promise<boolean>
+                          countsTowardsMonthly?: boolean) : Promise<boolean>
     {
         const mongoUser : any = await this.FindOrCreateUserObject(memberToChange);
         let amountToModify : number = preMultiAmount;
@@ -141,6 +141,9 @@ export class DbClient {
                         LoggerClient.WriteErrorLog(`Couldn't message user ${memberToChange.displayName} their level-up message, promise returned : ${rejectReason.toString()}`);
                     });
             }
+
+            //Update Level-based Roles relevant to their new level.
+            this.UpdateThresholdRolesForUser(memberToChange, userXPData);
         }
 
         mongoUser.xpInfo.totalXP = setVal; //Set total XP to this value.
@@ -157,7 +160,7 @@ export class DbClient {
     {
         const mongoUser : any = await this.FindOrCreateUserObject(memberToChange);
         const userXPData : XPData = new XPData(mongoUser.xpInfo.totalXP);
-        const desiredXP : number = Math.min(userXPData.GetTotalXPRequiredForLevel(Math.max(userXPData.userXP + desiredLevel, 1)), this.maxXPVal);
+        const desiredXP : number = Math.min(userXPData.GetTotalXPRequiredForLevel(Math.max(userXPData.userLevel + desiredLevel, 1)), this.maxXPVal);
 
         //Update their last earned date.
         mongoUser.xpInfo.lastMessage = Date.now();
@@ -178,7 +181,7 @@ export class DbClient {
             //Send them a DM if they allow it in their user settings.
             if(mongoUser.xpInfo.sendLevelUpMessages)
             {
-                memberToChange.send(`Your level in ${memberToChange.guild.name} has been set to ${userXPData.userXP}!`)
+                memberToChange.send(`Your level in ${memberToChange.guild.name} has been set to ${userXPData.userLevel}!`)
                     .then(fulfilled => {
                         LoggerClient.WriteInfoLog(`Successfully sent level set message to ${memberToChange.displayName}, promise returned : ${fulfilled.toString()}`);
                     })
@@ -188,6 +191,9 @@ export class DbClient {
                         LoggerClient.WriteErrorLog(`Couldn't message user ${memberToChange.displayName} their level-up message, promise returned : ${rejectReason.toString()}`);
                     });
             }
+
+            //Update Level-based Roles relevant to their new level.
+            this.UpdateThresholdRolesForUser(memberToChange, userXPData);
         }
 
         //Apply base XP to monthly total, if enabled
@@ -234,6 +240,9 @@ export class DbClient {
                 });
         }
 
+        //Update Level-based Roles relevant to their new level.
+        this.UpdateThresholdRolesForUser(memberToChange, userXPData);
+
         //Apply base XP to monthly total, if enabled
         if ( updateMonthly ) {
             //Apply base XP only to the monthly total.
@@ -249,6 +258,34 @@ export class DbClient {
         const oldXPData : XPData = new XPData(oldXP);
         const newXPData : XPData = new XPData(newXP);
         return (oldXPData.userLevel != newXPData.userLevel);
+    }
+
+    private UpdateThresholdRolesForUser(memberToChange: GuildMember, userXPData: XPData)
+    {
+        this.GetLevelUpRoles(memberToChange.guild).then(
+            thresholdRoleList => {
+                thresholdRoleList.forEach(thresholdRole => {
+                    if ( memberToChange.roles.cache.has(thresholdRole.RoleId) ) {
+                        if ( thresholdRole.LevelThreshold > userXPData.userLevel ) {
+                            //If the member has the role and they are below the level threshold for it, remove it from them
+                            memberToChange.roles.remove(thresholdRole.RoleId).then(result => {
+                                LoggerClient.WriteInfoLog(`Removed role from user (from level changes) : ${result.toString()}`);
+                            }).catch(error => {
+                                LoggerClient.WriteErrorLog(`Couldn't remove role from user (from level changes) : ${error.toString()}`);
+                            });
+                        }
+                    } else {
+                        //If they don't have the role and they are above the level threshold for it, add it to them
+                        if ( userXPData.userLevel >= thresholdRole.LevelThreshold ) {
+                            memberToChange.roles.add(thresholdRole.RoleId).then(result => {
+                                LoggerClient.WriteInfoLog(`Added role to user (from level changes) : ${result.toString()}`);
+                            }).catch(error => {
+                                LoggerClient.WriteErrorLog(`Couldn't add role to user (from level changes) : ${error.toString()}`);
+                            });
+                        }
+                    }
+                });
+            });
     }
 
     public async AddXPListChannel(channelToAdd: GuildChannel): Promise<boolean>
@@ -323,10 +360,51 @@ export class DbClient {
         }
     }
 
+    public async AddLevelUpRole(roleToAdd : Role, threshold : number): Promise<boolean>
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToAdd.guild);
+        const roleObject : { RoleId : string, LevelThreshold : number } =
+            {
+                RoleId : roleToAdd.id.toString(),
+                LevelThreshold : threshold
+            };
+
+        const alreadyExists: boolean = guildObject.guildXPSettings.levelThreshholdRoles.filter(x => x.RoleId === roleToAdd.id.toString()).length > 0;
+
+        //Add the entry to the array if it doesn't already exist.
+        if ( !alreadyExists ) {
+            guildObject.guildXPSettings.levelThreshholdRoles.push(roleObject);
+            return guildObject.save();
+        }
+    }
+
+    public async RemoveLevelUpRole(roleToRemove : Role)
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToRemove.guild);
+        const alreadyExists: boolean = guildObject.guildXPSettings.levelThreshholdRoles.filter(x => x.RoleId === roleToRemove.id.toString()).length > 0;
+
+        if ( alreadyExists ) {
+            guildObject.guildXPSettings.levelThreshholdRoles = guildObject.guildXPSettings.levelThreshholdRoles.filter(x => x.RoleId !==
+                roleToRemove.id.toString());
+            return guildObject.save();
+        } else {
+            //If the channel does not exist resolve this function as false/unsuccessful.
+            return new Promise<boolean>(async function (resolve, reject) {
+                resolve(false);
+            });
+        }
+    }
+
     public async GetMultiplierRoles(guildToCheck : Guild) : Promise<Array<{ RoleId : string, RoleMultiplier : number }>>
     {
         const guildObject : any = await this.FindOrCreateGuildObject(guildToCheck);
         return guildObject.guildXPSettings.xpMultiplierRoles;
+    }
+
+    public async GetLevelUpRoles(guildToCheck : Guild) : Promise<Array<{ RoleId : string, LevelThreshold : number }>>
+    {
+        const guildObject : any = await this.FindOrCreateGuildObject(guildToCheck);
+        return guildObject.guildXPSettings.levelThreshholdRoles;
     }
 
     public async IsXPListModeBlackList(guildToCheck: Guild): Promise<boolean>
@@ -385,7 +463,8 @@ export class DbClient {
         return new Promise<boolean>(async function (resolve, reject) {
             if ( guildObject.guildStaffSettings.staffMembers.includes(memberToCheck.id.toString()) ||
                 guildObject.guildStaffSettings.staffRoles.some(x => memberToCheck.roles.cache.has(x)) ||
-                owners.includes(memberToCheck.id.toString()) ) {
+                owners.includes(memberToCheck.id.toString()) ||
+                memberToCheck.permissions.has("ADMINISTRATOR")) {
                 resolve(true);
             } else {
                 resolve(false);
@@ -421,6 +500,46 @@ export class DbClient {
         let result : number = 0;
         let leaderboardUsers : any[] = await GuildUserModel.find({userGuild : memberToCheck.guild.id.toString()})
             .sort({"xpInfo.totalXP" : -1})
+            .exec();
+
+        //Now that we have a list of results, loop through and add to the result count until we get to the user being searched for
+        for(let i : number = 0; i < leaderboardUsers.length; i++)
+        {
+            result++;
+            if(leaderboardUsers[i].userID.toString() == memberToCheck.id.toString())
+            {
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    public async GenerateMonthlyLeaderboard(guild : Guild) : Promise<Map<string, XPData>>
+    {
+        let resultMap : Map<string, XPData> = new Map<string, XPData>();
+        let currentDate : Date = new Date();
+        let previousMonthDate : Date = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, currentDate.getDate());
+        let leaderboardUsers : any[] = await GuildUserModel.find({userGuild : guild.id.toString(), 'xpInfo.lastMessageDate' : { $gte : previousMonthDate}})
+            .sort({"xpInfo.xpThisMonth" : -1})
+            .exec();
+
+        //Now that we have a list of results, add them to the map
+        leaderboardUsers.forEach(mongoUser => {
+            resultMap.set(mongoUser.userID, new XPData(mongoUser.xpInfo.totalXP));
+        });
+
+        //Return the map once done
+        return resultMap;
+    }
+
+    public async GetMonthlyLeaderboardPositionOfUser(memberToCheck: GuildMember) : Promise<number>
+    {
+        let result : number = 0;
+        let currentDate : Date = new Date();
+        let previousMonthDate : Date = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, currentDate.getDate());
+        let leaderboardUsers : any[] = await GuildUserModel.find({userGuild : memberToCheck.guild.id.toString(), 'xpInfo.lastMessageDate' : { $gte : previousMonthDate}})
+            .sort({"xpInfo.xpThisMonth" : -1})
             .exec();
 
         //Now that we have a list of results, loop through and add to the result count until we get to the user being searched for

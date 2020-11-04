@@ -57,7 +57,7 @@ export default class SetXPCommand extends Command {
         {
             if ( await this.client.dbClient.CanUseStaffCommands(message.member) )
             {
-                if(amountToSetTo > 0)
+                if(amountToSetTo < 0)
                 {
                     this.client.dbClient.SetXP(member, amountToSetTo, countTowardsMonthly)
                         .then(async fulfilled =>

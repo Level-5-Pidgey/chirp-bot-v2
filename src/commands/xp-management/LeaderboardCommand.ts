@@ -23,7 +23,7 @@ export default class LeaderboardCommand extends Command {
                     }
                 ],
                 description : {
-                    content : "Creates a leaderboard page that showcases the ",
+                    content : "Creates a leaderboard page that showcases the users, ordered by their XP on the server.",
                     usage : "leaderboard [page]",
                     examples :
                         [
@@ -58,6 +58,7 @@ export default class LeaderboardCommand extends Command {
                             },
                             {
                                 name: "previousPage",
+                                content : await this.GenerateLeaderboardEmbed(pageToGet, usersPerPage, message),
                                 reactions: {
                                     "👈" : "previousPage",
                                     "👉" : "nextPage"
@@ -69,7 +70,7 @@ export default class LeaderboardCommand extends Command {
                         leaderboardMenu.start();
 
                         //Update the pageToGet variable as pages are chosen.
-                        leaderboardMenu.on('pageChange', destinationPage =>
+                        leaderboardMenu.on('pageChange', async destinationPage =>
                         {
                            if(destinationPage.name === "nextPage")
                            {
@@ -80,10 +81,7 @@ export default class LeaderboardCommand extends Command {
                                pageToGet = Math.max(1, pageToGet - 1);
                            }
 
-                           this.GenerateLeaderboardEmbed(pageToGet, usersPerPage, message).then(updatedPage =>
-                               {
-                                   destinationPage.content = updatedPage;
-                               });
+                           destinationPage.content = await this.GenerateLeaderboardEmbed(pageToGet, usersPerPage, message);
 
                            LoggerClient.WriteInfoLog(`Page To Get has been updated to ${pageToGet}`);
                         });
