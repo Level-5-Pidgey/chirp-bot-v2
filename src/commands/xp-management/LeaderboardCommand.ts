@@ -4,6 +4,7 @@ import { LoggerClient } from "../../client/LoggerClient";
 import XPData from "../../client/XPData";
 import { embedColour } from "../../config/config";
 import { Menu } from "discord.js-menu";
+import commandStrings = require("../../config/localstrings.json");
 
 export default class LeaderboardCommand extends Command {
     public constructor() {
@@ -94,7 +95,7 @@ export default class LeaderboardCommand extends Command {
         }
         else
         {
-            return message.util.send("This command isn't suitable for DMs! Try again in a server.");
+            return message.util.send(commandStrings.INVALIDCHANNELUSAGE);
         }
     }
 

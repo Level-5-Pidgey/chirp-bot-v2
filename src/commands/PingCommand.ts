@@ -6,7 +6,7 @@ export default class PingCommand extends Command {
         super("ping",
             {
                 aliases : ["ping", "ms"],
-                category : "utils",
+                category : "general",
                 description : {
                     content : "Check the latency of the ping to the Discord API. Detects if the bot's API gateway is functional.",
                     usage : "ping",

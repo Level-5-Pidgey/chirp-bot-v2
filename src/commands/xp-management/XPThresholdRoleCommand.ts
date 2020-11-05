@@ -2,13 +2,14 @@ import {Command, Flag} from "discord-akairo";
 import {DMChannel, Message} from "discord.js";
 import {embedColour, prefix} from "../../config/config";
 import {LoggerClient} from "../../client/LoggerClient";
+import commandStrings = require("../../config/localstrings.json");
 
 export default class XPThresholdRoleCommand extends Command {
     public constructor() {
         super("xprole",
             {
                 aliases : ["xprole", "xpr"],
-                category : "guild",
+                category : "xp",
                 description : {
                     content : "Allows you to add roles that are given upon level up.",
                     usage : "xprole [sub-command]...",
@@ -35,7 +36,7 @@ export default class XPThresholdRoleCommand extends Command {
                 }
                 else
                 {
-                    return message.util.send(`This command isn't for DM usage - please use this command within a server!`);
+                    return message.util.send(commandStrings.INVALIDCHANNELUSAGE);
                 }
             }
         };

@@ -3,38 +3,29 @@ import {Message, TextChannel} from "discord.js";
 import {LoggerClient} from "../../client/LoggerClient";
 import commandStrings = require("../../config/localstrings.json");
 
-export default class ModifyXPCommand extends Command {
+export default class SetXPCommand extends Command {
     public constructor() {
-        super("modifyxp",
+        super("setxprange",
             {
-                aliases : ["modifyxp", "mxp"],
+                aliases : ["setxprange", "sxpr"],
                 category : "xp",
                 args : [
                     {
                         id: "member",
                         type: "member",
                         prompt: {
-                            start: "Please tag the member you want to modify the XP of.",
+                            start: "Please tag the member you want to set the XP of.",
                             retry: "Please provide a valid server member.",
                             optional: false
                         }
                     },
                     {
-                        id: "amountToModify",
+                        id: "amountToSetTo",
                         type: "number",
                         prompt: {
-                            start: "Please provide the amount of XP you'd like to grant/take from a user.",
+                            start: "Please provide the amount of XP you want to set a user to.",
                             retry: "Please provide a valid number!",
                             optional: false
-                        }
-                    },
-                    {
-                        id: "applyMultipliers",
-                        type: "boolean",
-                        prompt: {
-                            start: "Please state if you'd like this modification to apply multipliers.",
-                            retry: "Please provide a boolean result (e.g. \"Yes\", \"False\", \"1\".",
-                            optional: true
                         }
                     },
                     {
@@ -48,46 +39,42 @@ export default class ModifyXPCommand extends Command {
                     }
                 ],
                 description : {
-                    content : "Modify a user's XP by a certain amount.",
-                    usage : "modifyxp <user> <value> [applyMultipliers] [countTowardsMonthly]",
+                    content : "Sets a user's XP to a certain amount.",
+                    usage : "setxp <user> <value> [countTowardsMonthly]",
                     examples :
                         [
-                            "modifyxp @bob 500",
-                            "modifyxp @jim -500 true false",
-                            "modifyxp @larry 600.532 true true",
-                            "modifyxp @samantha 5 false true",
+                            "setxp @bob 500",
+                            "setxp @jim 0 false",
+                            "setxp @larry 500 true"
                         ]
                 },
                 ratelimit : 3
             });
     }
 
-    public async exec(message: Message, { member, amountToModify, applyMultipliers, countTowardsMonthly }): Promise<Message>
+    public async exec(message: Message, { member, amountToSetTo, countTowardsMonthly }): Promise<Message>
     {
         if (message.channel instanceof TextChannel)
         {
             if ( await this.client.dbClient.CanUseStaffCommands(message.member) )
             {
-                if(amountToModify != 0)
+                if(amountToSetTo < 0)
                 {
-                    this.client.dbClient.ModifyXP(member, amountToModify, applyMultipliers, countTowardsMonthly)
+                    this.client.dbClient.SetXP(member, amountToSetTo, countTowardsMonthly)
                         .then(async fulfilled =>
                         {
                             LoggerClient.WriteInfoLog(`Modified ${member.username}'s XP in guild ${message.guild.id}, promise result : ${fulfilled.toString()}`);
-
-                            //Grab the updated XP amount.
-                            const modifyingUser : any = await this.client.dbClient.FindOrCreateUserObject(member);
-                            return message.util.send(`Successfully modified ${member}'s XP by *${amountToModify}*, it is now *${modifyingUser.xpInfo.totalXP}*.`);
+                            return message.util.send(`Successfully set ${member}'s XP to *${amountToSetTo}*.`);
                         })
                         .catch(rejection =>
                         {
-                            LoggerClient.WriteErrorLog(`Could not modify a user's XP in guild ${message.guild.id}, promise rejection : ${rejection.toString()}`);
+                            LoggerClient.WriteErrorLog(`Could not set an user's XP in guild ${message.guild.id}, promise rejection : ${rejection.toString()}`);
                             return message.util.send("There was an error processing this command! Please wait a bit and try again.");
                         });
                 }
                 else
                 {
-                    return message.util.send(`Successfully modified ${member}'s XP by *${amountToModify}*. What's the point of doing that, exactly?`);
+                    return message.util.send("You can't set a user's XP to below 0! Please try again.");
                 }
             }
             else

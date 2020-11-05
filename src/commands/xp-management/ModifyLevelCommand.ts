@@ -1,6 +1,7 @@
 import {Command} from "discord-akairo";
 import {Message, TextChannel} from "discord.js";
 import {LoggerClient} from "../../client/LoggerClient";
+import commandStrings = require("../../config/localstrings.json");
 
 export default class ModifyLevelCommand extends Command {
     public constructor() {
@@ -78,12 +79,12 @@ export default class ModifyLevelCommand extends Command {
             }
             else
             {
-                return message.util.send("You do not have the appropriate permissions for this command!");
+                return message.util.send(commandStrings.INVALIDSTAFFPERMS);
             }
         }
         else
         {
-            return message.util.send("This command isn't suitable for DMs! Try again in a server.");
+            return message.util.send(commandStrings.INVALIDCHANNELUSAGE);
         }
     }
 }

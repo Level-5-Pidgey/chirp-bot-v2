@@ -1,0 +1,5 @@
+{
+  "INVALIDSTAFFPERMS" : "You do not have permission to use this command!",
+  "INVALIDADMINPERMS" : "You require administrator permissions for this command!",
+  "INVALIDCHANNELUSAGE" : "This command isn't suitable for DMs! Try again in a server."
+}

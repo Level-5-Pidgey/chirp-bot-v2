@@ -2,6 +2,7 @@ import {Command, Flag} from "discord-akairo";
 import {DMChannel, Message, TextBasedChannel, TextChannel} from "discord.js";
 import {embedColour, prefix} from "../../config/config";
 import {LoggerClient} from "../../client/LoggerClient";
+import commandStrings = require("../../config/localstrings.json");
 
 export default class XPChannelToggleRemoveCommand extends Command {
     public constructor() {
@@ -40,12 +41,12 @@ export default class XPChannelToggleRemoveCommand extends Command {
             }
             else
             {
-                return message.util.send("You do not have the appropriate permissions for this command!");
+                return message.util.send(commandStrings.INVALIDSTAFFPERMS);
             }
         }
         else
         {
-            return message.util.send("This command isn't suitable for DMs! Try again in a server.");
+            return message.util.send(commandStrings.INVALIDCHANNELUSAGE);
         }
     }
 }

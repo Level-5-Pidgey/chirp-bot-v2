@@ -2,13 +2,14 @@ import {Command, Flag} from "discord-akairo";
 import {DMChannel, Message} from "discord.js";
 import {embedColour, prefix} from "../../config/config";
 import {LoggerClient} from "../../client/LoggerClient";
+import commandStrings = require("../../config/localstrings.json");
 
 export default class XPChannelToggleCommand extends Command {
     public constructor() {
         super("xptoggle",
             {
                 aliases : ["xptoggle", "xpt", "txp", "togglexp"],
-                category : "guild",
+                category : "xp",
                 description : {
                     content : "Allows you to change settings related to what channels grant XP to a user.",
                     usage : "xptoggle [sub-command]...",
@@ -37,10 +38,11 @@ export default class XPChannelToggleCommand extends Command {
                 }
                 else
                 {
-                    return message.util.send(`This command isn't for DM usage - please use this command within a server!`);
+                    return message.util.send(commandStrings.INVALIDCHANNELUSAGE);
                 }
             }
         };
+
         return Flag.continue(method);
     }
 }

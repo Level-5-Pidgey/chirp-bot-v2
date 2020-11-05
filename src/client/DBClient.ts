@@ -554,4 +554,97 @@ export class DbClient {
 
         return result;
     }
+
+    public async GetStaffRoles(guildToCheck : Guild) : Promise<Array<Role>>
+    {
+        let guildObject: any = await this.FindOrCreateGuildObject(guildToCheck);
+        const result : Array<Role> = [];
+
+        guildObject.guildStaffSettings.staffRoles.forEach(roleId =>
+        {
+            guildToCheck.roles.fetch(roleId).then(fetchedRole =>
+            {
+                result.push(fetchedRole);
+            });
+        });
+
+        return result;
+    }
+
+    public async GetStaffUsers(guildToCheck : Guild) : Promise<Array<GuildMember>>
+    {
+        let guildObject: any = await this.FindOrCreateGuildObject(guildToCheck);
+        const result : Array<GuildMember> = [];
+
+        guildObject.guildStaffSettings.staffMembers.forEach(memberId =>
+        {
+            guildToCheck.members.fetch(memberId).then(fetchedMember =>
+            {
+               result.push(fetchedMember);
+            }).catch(error =>
+            {
+                LoggerClient.WriteErrorLog(`Could not find user when trying to generate staff user list. Error : ${error.toString()}`);
+            });
+        });
+
+        return result;
+    }
+
+    public async AddStaffRole(roleToAdd : Role): Promise<boolean>
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToAdd.guild);
+        const alreadyExists: boolean = guildObject.guildStaffSettings.staffRoles.filter(x => x === roleToAdd.id.toString()).length > 0;
+
+        //Add the entry to the array if it doesn't already exist.
+        if ( !alreadyExists ) {
+            guildObject.guildStaffSettings.staffRoles.push(roleToAdd.id.toString());
+            return guildObject.save();
+        }
+    }
+
+    public async RemoveStaffRole(roleToRemove : Role)
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToRemove.guild);
+        const alreadyExists: boolean = guildObject.guildStaffSettings.staffRoles.filter(x => x === roleToRemove.id.toString()).length > 0;
+
+        if ( alreadyExists ) {
+            guildObject.guildStaffSettings.staffRoles = guildObject.guildStaffSettings.staffRoles.filter(x => x !==
+                roleToRemove.id.toString());
+            return guildObject.save();
+        } else {
+            //If the channel does not exist resolve this function as false/unsuccessful.
+            return new Promise<boolean>(async function (resolve, reject) {
+                resolve(false);
+            });
+        }
+    }
+
+    public async AddStaffUser(staffMemberToAdd : GuildMember): Promise<boolean>
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(staffMemberToAdd.guild);
+        const alreadyExists: boolean = guildObject.guildStaffSettings.staffMembers.filter(x => x === staffMemberToAdd.id.toString()).length > 0;
+
+        //Add the entry to the array if it doesn't already exist.
+        if ( !alreadyExists ) {
+            guildObject.guildStaffSettings.staffMembers.push(staffMemberToAdd.id.toString());
+            return guildObject.save();
+        }
+    }
+
+    public async RemoveStaffUser(staffMemberToRemove : GuildMember)
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(staffMemberToRemove.guild);
+        const alreadyExists: boolean = guildObject.guildStaffSettings.staffMembers.filter(x => x === staffMemberToRemove.id.toString()).length > 0;
+
+        if ( alreadyExists ) {
+            guildObject.guildStaffSettings.staffMembers = guildObject.guildStaffSettings.staffMembers.filter(x => x !==
+                staffMemberToRemove.id.toString());
+            return guildObject.save();
+        } else {
+            //If the channel does not exist resolve this function as false/unsuccessful.
+            return new Promise<boolean>(async function (resolve, reject) {
+                resolve(false);
+            });
+        }
+    }
 }

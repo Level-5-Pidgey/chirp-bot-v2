@@ -117,8 +117,7 @@ export default class HelpCommand extends Command {
             const printableCategories =
                 {
                     utils: "📝\u2000General",
-                    guild: "✏\u2000Mongo Database",
-                    xp: "✏\u2000XP Commands",
+                    xp: "📈\u2000XP Commands",
                 }[commandCategory.id];
 
             //List out the categories that should be printed
@@ -137,12 +136,18 @@ export default class HelpCommand extends Command {
             //Print Admin Commands
             for (const commandCategory of this.handler.categories.values())
             {
+                switch (commandCategory.id) {
+                    case "admin" :
+                        helpEmbed.addField(
+                            "🎮\u2000Admin",
+                            `\`${commandCategory.map(cmd => cmd.aliases[0]).join('` `')}\``
+                        );
+                        break;
+                        case ""
+                }
                 if (commandCategory.id == "admin")
                 {
-                    helpEmbed.addField(
-                        "🎮\u2000Admin",
-                        `\`${commandCategory.map(cmd => cmd.aliases[0]).join('` `')}\``
-                    );
+
                 }
             }
         }
@@ -154,7 +159,7 @@ export default class HelpCommand extends Command {
                 .then(promiseResult =>
                 {
                     //Send logger message about successful promise resolution.
-                    LoggerClient.WriteInfoLog(`Successfully sent help commandlist  to ${message.author.username}, promise returned : ${promiseResult}`);
+                    LoggerClient.WriteInfoLog(`Successfully sent help command list  to ${message.author.username}, promise returned : ${promiseResult}`);
                 })
                 .catch(rejection =>
                 {

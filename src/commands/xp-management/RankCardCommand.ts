@@ -1,8 +1,10 @@
 import { Command } from "discord-akairo";
-import { GuildMember, Message, MessageAttachment } from "discord.js";
+import {DMChannel, GuildMember, Message, MessageAttachment} from "discord.js";
 import RankCard from "../../client/RankCard";
 import {LoggerClient} from "../../client/LoggerClient";
 import XPData from "../../client/XPData";
+import {embedColour} from "../../config/config";
+import commandStrings = require("../../config/localstrings.json");
 
 export default class RankCardCommand extends Command {
     public constructor() {
@@ -36,32 +38,30 @@ export default class RankCardCommand extends Command {
 
     public async exec(message: Message, { member }): Promise<Message>
     {
-        const memberId : string = member == null ? message.member.id : member.id;
-        let memberToCheck : GuildMember;
-        let userXPData : XPData;
-        let leaderboardPos : number;
-        //Try fetch the member requested for the rank card.
-        try
+        if (!(message.channel instanceof DMChannel))
         {
-            memberToCheck = await message.guild.members.fetch(memberId);
+            const memberId : string = member == null ? message.member.id : member.id;
+            let memberToCheck : GuildMember;
+            let userXPData : XPData;
+            let leaderboardPos : number;
+            //Try fetch the member requested for the rank card.
+            try
+            {
+                memberToCheck = await message.guild.members.fetch(memberId);
 
-            //Get member mongo object and their XP data
-            const mongoUser : any = await this.client.dbClient.FindOrCreateUserObject(memberToCheck);
-            userXPData = new XPData(mongoUser.xpInfo.totalXP);
+                //Get member mongo object and their XP data
+                const mongoUser : any = await this.client.dbClient.FindOrCreateUserObject(memberToCheck);
+                userXPData = new XPData(mongoUser.xpInfo.totalXP);
+            }
+            catch (e) {
+                //Log rejection and print message for the user.
+                LoggerClient.WriteErrorLog(`Error fetching user ${memberId}, could not source by ID for a rank card! Promise rejection : ${e.toString()}`);
+                return message.util.send("There was an error processing this command! Please wait a bit and try again.");
+            }
 
-            //Test, get leaderboard position
-            leaderboardPos = await this.client.dbClient.GetLeaderboardPositionOfUser(memberToCheck);
-            LoggerClient.WriteInfoLog(`User ID : ${memberToCheck.id}, is #${leaderboardPos} on the leaderboard`);
-        }
-        catch (e) {
-            //Log rejection and print message for the user.
-            LoggerClient.WriteErrorLog(`Error fetching user ${memberId}, could not source by ID for a rank card! Promise rejection : ${e.toString()}`);
-            return message.util.send("There was an error processing this command! Please wait a bit and try again.");
-        }
-
-        //Now we have the member, render the rank card!
-        message.util.send(`Our code monkeys are generating your rank card. Hang on a sec...`)
-            .then(async resolvedMessage =>
+            //Now we have the member, render the rank card!
+            message.util.send(`Our code monkeys are generating your rank card. Hang on a sec...`)
+                .then(async resolvedMessage =>
                 {
                     await new RankCard().RenderCard(memberToCheck, userXPData.xpIntoLevel, userXPData.xpToLevel, userXPData.userLevel, leaderboardPos)
                         .then(renderedCard =>
@@ -76,5 +76,10 @@ export default class RankCardCommand extends Command {
                             return message.util.send(cardImage);
                         });
                 });
+        }
+        else
+        {
+            return message.util.send(commandStrings.INVALIDCHANNELUSAGE);
+        }
     }
 }

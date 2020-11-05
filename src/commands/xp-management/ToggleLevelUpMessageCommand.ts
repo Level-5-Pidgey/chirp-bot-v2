@@ -1,5 +1,6 @@
 import {Command} from "discord-akairo";
 import {Message, TextChannel} from "discord.js";
+import commandStrings = require("../../config/localstrings.json");
 
 export default class ToggleLevelUpMessageCommand extends Command {
     public constructor() {
@@ -38,7 +39,7 @@ export default class ToggleLevelUpMessageCommand extends Command {
         }
         else
         {
-            return message.util.send("This command isn't suitable for DMs! Try again in a server.");
+            return message.util.send(commandStrings.INVALIDCHANNELUSAGE);
         }
     }
 }
