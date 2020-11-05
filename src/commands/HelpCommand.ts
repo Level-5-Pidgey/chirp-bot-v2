@@ -143,7 +143,6 @@ export default class HelpCommand extends Command {
                             `\`${commandCategory.map(cmd => cmd.aliases[0]).join('` `')}\``
                         );
                         break;
-                        case ""
                 }
                 if (commandCategory.id == "admin")
                 {
