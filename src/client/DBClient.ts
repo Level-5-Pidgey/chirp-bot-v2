@@ -479,6 +479,15 @@ export class DbClient {
         return Math.floor(Math.random() * (guildObject.guildXPSettings.maxXPPerMessage - guildObject.guildXPSettings.minXPPerMessage) + guildObject.guildXPSettings.minXPPerMessage);
     }
 
+    public async SetXpVariation(guild : Guild, newMinXP : number, newMaxXP : number) : Promise<number>
+    {
+        let guildObject: any = await this.FindOrCreateGuildObject(guild);
+
+        guildObject.guildXPSettings.minXPPerMessage = newMinXP;
+        guildObject.guildXPSettings.maxXPPerMessage = newMaxXP;
+        return guildObject.save();
+    }
+
     public async GenerateLeaderboard(guild : Guild) : Promise<Map<string, XPData>>
     {
         let resultMap : Map<string, XPData> = new Map<string, XPData>();
@@ -639,6 +648,111 @@ export class DbClient {
         if ( alreadyExists ) {
             guildObject.guildStaffSettings.staffMembers = guildObject.guildStaffSettings.staffMembers.filter(x => x !==
                 staffMemberToRemove.id.toString());
+            return guildObject.save();
+        } else {
+            //If the channel does not exist resolve this function as false/unsuccessful.
+            return new Promise<boolean>(async function (resolve, reject) {
+                resolve(false);
+            });
+        }
+    }
+
+    public async AddContributorRole(roleToAdd : Role, threshold : number): Promise<boolean>
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToAdd.guild);
+        const roleObject : { RoleId : string, LevelThreshold : number } =
+            {
+                RoleId : roleToAdd.id.toString(),
+                LevelThreshold : threshold
+            };
+
+        const alreadyExists: boolean = guildObject.guildEarnedRoleSettings.contributionRoles.filter(x => x.RoleId === roleToAdd.id.toString()).length > 0;
+
+        //Add the entry to the array if it doesn't already exist.
+        if ( !alreadyExists ) {
+            guildObject.guildEarnedRoleSettings.contributionRoles.push(roleObject);
+            return guildObject.save();
+        }
+    }
+
+    public async RemoveContributorRole(roleToRemove : Role)
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToRemove.guild);
+        const alreadyExists: boolean = guildObject.guildEarnedRoleSettings.contributionRoles.filter(x => x.RoleId === roleToRemove.id.toString()).length > 0;
+
+        if ( alreadyExists ) {
+            guildObject.guildEarnedRoleSettings.contributionRoles = guildObject.guildEarnedRoleSettings.contributionRoles.filter(x => x.RoleId !==
+                roleToRemove.id.toString());
+            return guildObject.save();
+        } else {
+            //If the channel does not exist resolve this function as false/unsuccessful.
+            return new Promise<boolean>(async function (resolve, reject) {
+                resolve(false);
+            });
+        }
+    }
+
+    public async AddCoachRole(roleToAdd : Role, threshold : number): Promise<boolean>
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToAdd.guild);
+        const roleObject : { RoleId : string, LevelThreshold : number } =
+            {
+                RoleId : roleToAdd.id.toString(),
+                LevelThreshold : threshold
+            };
+
+        const alreadyExists: boolean = guildObject.guildEarnedRoleSettings.coachRoles.filter(x => x.RoleId === roleToAdd.id.toString()).length > 0;
+
+        //Add the entry to the array if it doesn't already exist.
+        if ( !alreadyExists ) {
+            guildObject.guildEarnedRoleSettings.coachRoles.push(roleObject);
+            return guildObject.save();
+        }
+    }
+
+    public async RemoveCoachRole(roleToRemove : Role)
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToRemove.guild);
+        const alreadyExists: boolean = guildObject.guildEarnedRoleSettings.coachRoles.filter(x => x.RoleId === roleToRemove.id.toString()).length > 0;
+
+        if ( alreadyExists ) {
+            guildObject.guildEarnedRoleSettings.coachRoles = guildObject.guildEarnedRoleSettings.coachRoles.filter(x => x.RoleId !==
+                roleToRemove.id.toString());
+            return guildObject.save();
+        } else {
+            //If the channel does not exist resolve this function as false/unsuccessful.
+            return new Promise<boolean>(async function (resolve, reject) {
+                resolve(false);
+            });
+        }
+    }
+
+    public async AddCommunityParticipationRole(roleToAdd : Role, threshold : number): Promise<boolean>
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToAdd.guild);
+        const roleObject : { RoleId : string, LevelThreshold : number } =
+            {
+                RoleId : roleToAdd.id.toString(),
+                LevelThreshold : threshold
+            };
+
+        const alreadyExists: boolean = guildObject.guildEarnedRoleSettings.communityParticipationRoles.filter(x => x.RoleId === roleToAdd.id.toString()).length > 0;
+
+        //Add the entry to the array if it doesn't already exist.
+        if ( !alreadyExists ) {
+            guildObject.guildEarnedRoleSettings.communityParticipationRoles.push(roleObject);
+            return guildObject.save();
+        }
+    }
+
+    public async RemoveCommunityParticipationRole(roleToRemove : Role)
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(roleToRemove.guild);
+        const alreadyExists: boolean = guildObject.guildEarnedRoleSettings.communityParticipationRoles.filter(x => x.RoleId === roleToRemove.id.toString()).length > 0;
+
+        if ( alreadyExists ) {
+            guildObject.guildEarnedRoleSettings.coachRoles = guildObject.guildEarnedRoleSettings.communityParticipationRoles.filter(x => x.RoleId !==
+                roleToRemove.id.toString());
             return guildObject.save();
         } else {
             //If the channel does not exist resolve this function as false/unsuccessful.

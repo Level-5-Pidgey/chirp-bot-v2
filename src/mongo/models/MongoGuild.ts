@@ -10,6 +10,13 @@ const xpSettings = new mongoose.Schema({
     levelThreshholdRoles : { type : Array, default : [] },
 });
 
+const earnedRoleSettings = new mongoose.Schema({
+    contributionRoles : { type : Array, default : [] },
+    coachRoles : { type : Array, default : [] },
+    communityParticipationRoles : { type : Array, default : [] },
+    motmRole : { type : String, default : "" },
+});
+
 const staffSettings = new mongoose.Schema({
     staffMembers : { type : Array, default : owners },
     staffRoles : { type : Array, default : [] },
@@ -23,6 +30,10 @@ const MongoGuild = new mongoose.Schema({
     },
     guildStaffSettings : {
         type : staffSettings,
+        default : { }
+    },
+    guildEarnedRoleSettings : {
+        type : earnedRoleSettings,
         default : { }
     }
 });
