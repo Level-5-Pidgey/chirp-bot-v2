@@ -4,6 +4,7 @@ export default class XPData
 {
     private _userLevel : number = 1;
     private _userXP : number = 0;
+    private _monthlyXP : number = 0;
 
     public get userXP() : number
     {
@@ -13,6 +14,16 @@ export default class XPData
     public set userXP(userXP : number)
     {
         this._userXP = userXP;
+    }
+
+    public get monthlyXP() : number
+    {
+        return this._monthlyXP;
+    }
+
+    public set monthlyXP(monthlyXP : number)
+    {
+        this._monthlyXP = monthlyXP;
     }
 
     public get userLevel() : number

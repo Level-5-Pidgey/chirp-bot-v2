@@ -4,3 +4,9 @@ export let mongoDBName: string = "chirp-mongo";
 export let embedColour: number = 0xFFAC33;
 export let xpMin: number = 50;
 export let xpMax: number = 90;
+export enum PointsRoleType
+{
+    Coach = 1,
+    Contributor,
+    Participant
+};

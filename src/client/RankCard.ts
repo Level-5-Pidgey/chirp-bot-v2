@@ -130,7 +130,7 @@ export default class RankCard
                       leaderboardPosition: number)
     {
         //Calculate Level Text
-        let levelText: string = "";
+        let levelText : string = "";
         if ( userLevel > 500 ) {
             levelText = "MAX"
         } else {
@@ -141,6 +141,7 @@ export default class RankCard
                 levelText = playerLevelRounded.toString();
             }
         }
+
         ctx.fillStyle = highlightColour;
         //Get widths of the "LEVEL " string as well as the level number
         ctx.font = `30px ${fontName}`;

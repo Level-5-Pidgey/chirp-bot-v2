@@ -57,9 +57,6 @@ export default class BotClient extends AkairoClient {
     {
         super({
             ownerID : config.owners
-        },
-        {
-            disableMentions: 'everyone'
         });
 
         this.config = config;

@@ -1,5 +1,5 @@
 import mongoose = require("mongoose");
-import {mongoDBName, owners} from "../config/config";
+import {mongoDBName, owners, PointsRoleType} from "../config/config";
 import {LoggerClient} from "./LoggerClient";
 import {Guild, GuildChannel, GuildMember, Message, Role} from "discord.js";
 import GuildUserModel from "../mongo/models/GuildUser";
@@ -27,6 +27,17 @@ export class DbClient {
     {
         //Connect to the MongoDb and get the database requested in the client constructor.
         return mongoose.connect(`mongodb://mongo:27017/${mongoDBName}`, {useNewUrlParser: true});
+    }
+
+    private IsInactive(lastMessageDate : number) : boolean
+    {
+        const dateToday : Date = new Date();
+        const PriorDate : number = (dateToday.setDate(dateToday.getDate() - 60));
+        if ( lastMessageDate < PriorDate ) {
+            return true;
+        }
+
+        return false;
     }
 
     public async FindOrCreateGuildObject(guild: Guild)
@@ -69,7 +80,7 @@ export class DbClient {
         const mongoUser : any = await this.FindOrCreateUserObject(memberToChange);
         let amountToModify : number = preMultiAmount;
 
-        if ( applyMultipliers ) //If the multipliers apply, calculate the final amount by the roles of the user
+        if (applyMultipliers) //If the multipliers apply, calculate the final amount by the roles of the user
         {
             this.GetMultipliersForMember(memberToChange).then(value => {
                 amountToModify *= value;
@@ -83,13 +94,13 @@ export class DbClient {
         //Update their last earned date.
         mongoUser.xpInfo.lastMessage = Date.now();
 
-        //Update monthly XP if the month has rolled over.
-        if ( mongoUser.xpInfo.lastMessageDate.getMonth() < new Date().getMonth() ) {
+        //Update monthly XP if the user has been inactive for 2 months.
+        if (this.IsInactive(mongoUser.xpInfo.lastMessageDate.getDate())) {
             mongoUser.xpInfo.xpThisMonth = 0;
         }
 
         //Before applying XP, check if the user would level up as a result of this XP change.
-        if(this.CheckIfLevelChanges(mongoUser.xpInfo.totalXP, updatedXP.userXP))
+        if (this.CheckIfLevelChanges(mongoUser.xpInfo.totalXP, updatedXP.userXP))
         {
             //Send them a DM if they allow it in their user settings.
             if(mongoUser.xpInfo.sendLevelUpMessages)
@@ -143,7 +154,7 @@ export class DbClient {
             }
 
             //Update Level-based Roles relevant to their new level.
-            this.UpdateThresholdRolesForUser(memberToChange, userXPData);
+            this.UpdateXPThresholdRolesForUser(memberToChange, userXPData);
         }
 
         mongoUser.xpInfo.totalXP = setVal; //Set total XP to this value.
@@ -165,8 +176,8 @@ export class DbClient {
         //Update their last earned date.
         mongoUser.xpInfo.lastMessage = Date.now();
 
-        //Update monthly XP if the month has rolled over.
-        if ( mongoUser.xpInfo.lastMessageDate.getMonth() < new Date().getMonth() ) {
+        //Update monthly XP if the user has been inactive for 2 months.
+        if (this.IsInactive(mongoUser.xpInfo.lastMessageDate.getDate())) {
             mongoUser.xpInfo.xpThisMonth = 0;
         }
 
@@ -193,7 +204,7 @@ export class DbClient {
             }
 
             //Update Level-based Roles relevant to their new level.
-            this.UpdateThresholdRolesForUser(memberToChange, userXPData);
+            this.UpdateXPThresholdRolesForUser(memberToChange, userXPData);
         }
 
         //Apply base XP to monthly total, if enabled
@@ -206,17 +217,16 @@ export class DbClient {
         return mongoUser.save();
     }
 
-    public async SetLevel(memberToChange: GuildMember, value: number, updateMonthly?: boolean) : Promise<boolean>
-    {
-        const mongoUser : any = await this.FindOrCreateUserObject(memberToChange);
-        const userXPData : XPData = new XPData(mongoUser.xpInfo.totalXP);
-        const desiredXP : number = Math.min(userXPData.GetTotalXPRequiredForLevel(Math.max(value, 1)), this.maxXPVal);
+    public async SetLevel(memberToChange: GuildMember, value: number, updateMonthly?: boolean) : Promise<boolean> {
+        const mongoUser: any = await this.FindOrCreateUserObject(memberToChange);
+        const userXPData: XPData = new XPData(mongoUser.xpInfo.totalXP);
+        const desiredXP: number = Math.min(userXPData.GetTotalXPRequiredForLevel(Math.max(value, 1)), this.maxXPVal);
 
         //Update their last earned date.
         mongoUser.xpInfo.lastMessage = Date.now();
 
-        //Update monthly XP if the month has rolled over.
-        if ( mongoUser.xpInfo.lastMessageDate.getMonth() < new Date().getMonth() ) {
+        //Update monthly XP if the user has been inactive for 2 months.
+        if (this.IsInactive(mongoUser.xpInfo.lastMessageDate.getDate())) {
             mongoUser.xpInfo.xpThisMonth = 0;
         }
 
@@ -225,26 +235,23 @@ export class DbClient {
         userXPData.userXP = desiredXP;
 
         //Send them a DM about their level change if they allow it in their user settings.
-        if(mongoUser.xpInfo.sendLevelUpMessages)
-        {
+        if (mongoUser.xpInfo.sendLevelUpMessages) {
             memberToChange.send(`Your level in ${memberToChange.guild.name} has been set to ${userXPData.userLevel}!`)
-                .then(value =>
-                {
+                .then(value => {
                     //Send logger message about successful promise resolution.
                     LoggerClient.WriteInfoLog(`Successfully sent level set message to ${memberToChange.displayName}, promise returned : ${value}`);
                 })
-                .catch(rejectReason =>
-                {
+                .catch(rejectReason => {
                     //Catch rejected promise if the user has left the server or is blocked.
                     LoggerClient.WriteErrorLog(`Couldn't message user ${memberToChange.displayName} their level-up message, promise returned : ${rejectReason.toString()}`);
                 });
         }
 
         //Update Level-based Roles relevant to their new level.
-        this.UpdateThresholdRolesForUser(memberToChange, userXPData);
+        this.UpdateXPThresholdRolesForUser(memberToChange, userXPData);
 
         //Apply base XP to monthly total, if enabled
-        if ( updateMonthly ) {
+        if (updateMonthly) {
             //Apply base XP only to the monthly total.
             mongoUser.xpInfo.xpThisMonth = desiredXP;
         }
@@ -260,7 +267,7 @@ export class DbClient {
         return (oldXPData.userLevel != newXPData.userLevel);
     }
 
-    private UpdateThresholdRolesForUser(memberToChange: GuildMember, userXPData: XPData)
+    private UpdateXPThresholdRolesForUser(memberToChange: GuildMember, userXPData: XPData)
     {
         this.GetLevelUpRoles(memberToChange.guild).then(
             thresholdRoleList => {
@@ -279,6 +286,34 @@ export class DbClient {
                         if ( userXPData.userLevel >= thresholdRole.LevelThreshold ) {
                             memberToChange.roles.add(thresholdRole.RoleId).then(result => {
                                 LoggerClient.WriteInfoLog(`Added role to user (from level changes) : ${result.toString()}`);
+                            }).catch(error => {
+                                LoggerClient.WriteErrorLog(`Couldn't add role to user (from level changes) : ${error.toString()}`);
+                            });
+                        }
+                    }
+                });
+            });
+    }
+
+    private UpdatePointsThresholdRolesForUser(memberToChange: GuildMember, pointsType : PointsRoleType, pointsValue : number)
+    {
+        this.GetPointsRoles(memberToChange.guild, pointsType).then(
+            thresholdRoleList => {
+                thresholdRoleList.forEach(thresholdRole => {
+                    if ( memberToChange.roles.cache.has(thresholdRole.RoleId) ) {
+                        if ( thresholdRole.PointsThreshold > pointsValue ) {
+                            //If the member has the role and they are below the points threshold for it, remove it from them
+                            memberToChange.roles.remove(thresholdRole.RoleId).then(result => {
+                                LoggerClient.WriteInfoLog(`Removed role from user (from points changes) : ${result.toString()}`);
+                            }).catch(error => {
+                                LoggerClient.WriteErrorLog(`Couldn't remove role from user (from points changes) : ${error.toString()}`);
+                            });
+                        }
+                    } else {
+                        //If they don't have the role and they are above the level threshold for it, add it to them
+                        if ( pointsValue >= thresholdRole.PointsThreshold ) {
+                            memberToChange.roles.add(thresholdRole.RoleId).then(result => {
+                                LoggerClient.WriteInfoLog(`Added role to user (from points changes) : ${result.toString()}`);
                             }).catch(error => {
                                 LoggerClient.WriteErrorLog(`Couldn't add role to user (from level changes) : ${error.toString()}`);
                             });
@@ -401,6 +436,27 @@ export class DbClient {
         return guildObject.guildXPSettings.xpMultiplierRoles;
     }
 
+    public async GetPointsRoles(guildToCheck : Guild, roleType : PointsRoleType) : Promise<Array<{ RoleId : string, PointsThreshold : number }>>
+    {
+        const guildObject : any = await this.FindOrCreateGuildObject(guildToCheck);
+
+        switch (roleType)
+        {
+            case PointsRoleType.Coach:
+                return guildObject.guildEarnedRoleSettings.coachRoles;
+                break;
+            case PointsRoleType.Contributor:
+                return guildObject.guildEarnedRoleSettings.contributionRoles;
+                break;
+            case PointsRoleType.Participant:
+                return  guildObject.guildEarnedRoleSettings.communityParticipationRoles;
+                break;
+            default:
+                return null;
+                break;
+        }
+    }
+
     public async GetLevelUpRoles(guildToCheck : Guild) : Promise<Array<{ RoleId : string, LevelThreshold : number }>>
     {
         const guildObject : any = await this.FindOrCreateGuildObject(guildToCheck);
@@ -488,22 +544,6 @@ export class DbClient {
         return guildObject.save();
     }
 
-    public async GenerateLeaderboard(guild : Guild) : Promise<Map<string, XPData>>
-    {
-        let resultMap : Map<string, XPData> = new Map<string, XPData>();
-        let leaderboardUsers : any[] = await GuildUserModel.find({userGuild : guild.id.toString()})
-            .sort({"xpInfo.totalXP" : -1})
-            .exec();
-
-        //Now that we have a list of results, add them to the map
-        leaderboardUsers.forEach(mongoUser => {
-            resultMap.set(mongoUser.userID, new XPData(mongoUser.xpInfo.totalXP));
-        });
-
-        //Return the map once done
-        return resultMap;
-    }
-
     public async GetLeaderboardPositionOfUser(memberToCheck: GuildMember) : Promise<number>
     {
         let result : number = 0;
@@ -522,24 +562,6 @@ export class DbClient {
         }
 
         return result;
-    }
-
-    public async GenerateMonthlyLeaderboard(guild : Guild) : Promise<Map<string, XPData>>
-    {
-        let resultMap : Map<string, XPData> = new Map<string, XPData>();
-        let currentDate : Date = new Date();
-        let previousMonthDate : Date = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, currentDate.getDate());
-        let leaderboardUsers : any[] = await GuildUserModel.find({userGuild : guild.id.toString(), 'xpInfo.lastMessageDate' : { $gte : previousMonthDate}})
-            .sort({"xpInfo.xpThisMonth" : -1})
-            .exec();
-
-        //Now that we have a list of results, add them to the map
-        leaderboardUsers.forEach(mongoUser => {
-            resultMap.set(mongoUser.userID, new XPData(mongoUser.xpInfo.totalXP));
-        });
-
-        //Return the map once done
-        return resultMap;
     }
 
     public async GetMonthlyLeaderboardPositionOfUser(memberToCheck: GuildMember) : Promise<number>
@@ -760,5 +782,66 @@ export class DbClient {
                 resolve(false);
             });
         }
+    }
+
+    public async SetMOTMRole(motmRole : Role)
+    {
+        let guildObject : any = await this.FindOrCreateGuildObject(motmRole.guild);
+
+        guildObject.guildEarnedRoleSettings.motmRole = motmRole.id.toString();
+        return guildObject.save();
+    }
+
+    public async SetUserPoints(memberToChange : GuildMember, value : number, pointsType : PointsRoleType) : Promise<boolean>
+    {
+        const mongoUser : any = await this.FindOrCreateUserObject(memberToChange);
+
+        //Update the User's Role Points based on the type being updated.
+        switch (pointsType)
+        {
+            case PointsRoleType.Coach:
+                mongoUser.pointsInfo.coachPoints = value;
+                break;
+            case PointsRoleType.Contributor:
+                mongoUser.pointsInfo.contribPoints = value;
+                break;
+            case PointsRoleType.Participant:
+                mongoUser.pointsInfo.participationPoints = value;
+                break;
+            default:
+                mongoUser.pointsInfo.coachPoints = 0;
+                mongoUser.pointsInfo.participationPoints = 0;
+                mongoUser.pointsInfo.contribPoints = 0;
+        }
+
+        //Update Point-based Roles relevant to their new level.
+        this.UpdatePointsThresholdRolesForUser(memberToChange, pointsType, value);
+
+        //Save the user once complete.
+        return mongoUser.save();
+    }
+
+    public async GetUserPoints(memberToQuery : GuildMember, pointsType : PointsRoleType) : Promise<number>
+    {
+        const mongoUser : any = await this.FindOrCreateUserObject(memberToQuery);
+        let returnVal : number;
+
+        //Update the User's Role Points based on the type being updated.
+        switch (pointsType)
+        {
+            case PointsRoleType.Coach:
+                returnVal = mongoUser.pointsInfo.coachPoints;
+                break;
+            case PointsRoleType.Contributor:
+                returnVal = mongoUser.pointsInfo.contribPoints;
+                break;
+            case PointsRoleType.Participant:
+                returnVal = mongoUser.pointsInfo.participationPoints;
+                break;
+            default:
+                returnVal = 0;
+        };
+
+        return returnVal;
     }
 }

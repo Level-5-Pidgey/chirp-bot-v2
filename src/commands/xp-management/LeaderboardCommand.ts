@@ -5,6 +5,9 @@ import XPData from "../../client/XPData";
 import { embedColour } from "../../config/config";
 import { Menu } from "discord.js-menu";
 import commandStrings = require("../../config/localstrings.json");
+import GuildUserModel from "../../mongo/models/GuildUser";
+
+let validLeaderboardTypes : Array<string> = new Array<string>("total", "monthly");
 
 export default class LeaderboardCommand extends Command {
     public constructor() {
@@ -14,84 +17,55 @@ export default class LeaderboardCommand extends Command {
                 category : "xp",
                 args : [
                     {
-                        id: "leaderboardPage",
-                        type: "integer",
+                        id: "leaderboardType",
+                        type: "string",
                         prompt: {
-                            start: "What page of the leaderboards are you trying to access?",
-                            retry: "Please provide a valid leaderboard page.",
+                            start: "What type of leaderboard are you trying to access?",
+                            retry: `Please provide a valid leaderboard type. Valid types are: ${validLeaderboardTypes.join(", ")}"`,
                             optional: true
                         }
                     }
                 ],
                 description : {
-                    content : "Creates a leaderboard page that showcases the users, ordered by their XP on the server.",
-                    usage : "leaderboard [page]",
+                    content : "Creates a leaderboard that showcases users of the server, ordered by their XP on the server. Can show many different types of leaderboards, defaulting to the total XP.",
+                    usage : "leaderboard [type]",
                     examples :
                         [
                             "leaderboard",
-                            "leaderboard 3"
+                            "leaderboard total"
                         ]
                 },
                 ratelimit : 3
             });
     }
 
-    public async exec(message: Message, { leaderboardPage }) : Promise<Message>
+    public async exec(message: Message, { leaderboardType }) : Promise<Message>
     {
         if (message.channel instanceof TextChannel)
         {
-            this.client.dbClient.GetLeaderboardPositionOfUser(message.member)
-                .then(async leaderboardPosition =>
-                {
-                    const usersPerPage : number = 1;
-                    let pageToGet : number = leaderboardPage == null ? LeaderboardCommand.RoundToNearest10Down(leaderboardPosition) + 1 : leaderboardPage;
+            const usersPerPage : number = 10;
 
-                    if (pageToGet > 0)
+            //Check if the user is requesting a valid leaderboard type
+            if(leaderboardType != null && !validLeaderboardTypes.includes(leaderboardType.toLowerCase()))
+            {
+                return message.util.send(`You've entered an invalid leaderboard type. The valid leaderboard types are : ${validLeaderboardTypes.join(", ")}`);
+            }
+
+            //If no leaderboard type is entered, default to "total", otherwise toLower the input and check
+            const leaderboardTypeString : string = leaderboardType == null ? "total" : leaderboardType.toLowerCase();
+            switch (leaderboardTypeString) {
+                case "monthly":
+                    this.GenerateMonthlyXPEmbed(usersPerPage, message).then(generatedEmbed =>
                     {
-                        let leaderboardMenu = new Menu(message.channel, message.author.id, [
-                            {
-                                name: "nextPage",
-                                content : await this.GenerateLeaderboardEmbed(pageToGet, usersPerPage, message),
-                                reactions: {
-                                    "👈" : "previousPage",
-                                    "👉" : "nextPage"
-                                }
-                            },
-                            {
-                                name: "previousPage",
-                                content : await this.GenerateLeaderboardEmbed(pageToGet, usersPerPage, message),
-                                reactions: {
-                                    "👈" : "previousPage",
-                                    "👉" : "nextPage"
-                                }
-                            }
-                        ], 30000);
-
-                        //Generate the Embed!
-                        leaderboardMenu.start();
-
-                        //Update the pageToGet variable as pages are chosen.
-                        leaderboardMenu.on('pageChange', async destinationPage =>
-                        {
-                           if(destinationPage.name === "nextPage")
-                           {
-                               pageToGet++;
-                           }
-                           else if(destinationPage.name === "previousPage")
-                           {
-                               pageToGet = Math.max(1, pageToGet - 1);
-                           }
-
-                           destinationPage.content = await this.GenerateLeaderboardEmbed(pageToGet, usersPerPage, message);
-
-                           LoggerClient.WriteInfoLog(`Page To Get has been updated to ${pageToGet}`);
-                        });
-                    }
-                    else
+                        message.util.send(generatedEmbed);
+                    });
+                    break;
+                default:
+                    this.GenerateTotalXPEmbed(usersPerPage, message).then(generatedEmbed =>
                     {
-                        return message.util.send("Please enter a page number greater than 0!");
-                    }
-                });
+                        message.util.send(generatedEmbed);
+                    });
+            }
         }
         else
         {
@@ -99,39 +73,76 @@ export default class LeaderboardCommand extends Command {
         }
     }
 
-    private async GenerateLeaderboardEmbed(pageToGet : number, usersPerPage : number, message : Message) : Promise<MessageEmbed>
+    private async GenerateTotalXPEmbed(usersToDisplay : number, message : Message) : Promise<MessageEmbed>
     {
-        const maxIndex: number = Math.max(1, (pageToGet * usersPerPage));
-        const minIndex: number = Math.max(1, maxIndex - usersPerPage + 1);
-        const leaderboardMap: Map<string, XPData> = await this.client.dbClient.GenerateLeaderboard(message.guild);
-
-        let leaderboardResultArray: Array<string> = [];
+        const leaderboardResultArray : Array<string> = new Array<string>();
         const leaderboardEmbed = this.client.util.embed()
             .setColor(embedColour);
+        const leaderboardUsers : Array<any> = await GuildUserModel.find({userGuild : message.guild.id.toString()})
+            .sort({"xpInfo.totalXP" : -1})
+            .exec();
 
-        let currentIndex: number = 0;
-        await leaderboardMap.forEach(async (value: XPData, key: string) => {
-            message.guild.members.fetch(key)
-                .then(resolvedMember => {
-                    //Increase the index by one then assess if we are in the range or not
-                    currentIndex++;
-                    if ( currentIndex >= minIndex && currentIndex <= maxIndex ) {
-                        //We're in the 10 allowed entries of the leaderboard, so we can start obtaining users and printing them!
-                        if ( resolvedMember != null ) {
-                            leaderboardResultArray.push(`${LeaderboardCommand.GetLeaderboardIndexString(currentIndex)} : ${resolvedMember} — (__Level__ : **${value.userLevel}**, __XP__ : **${value.userXP.toLocaleString('en')})**`);
-                        }
-                    }
-                });
-        });
+        //Iterate through users in the guild sorted by XP, then create string-based format
+        for (let i = 0; i < leaderboardUsers.length; i++) {
+            let mongoUser = leaderboardUsers[i];
+            let index = leaderboardUsers.indexOf(mongoUser);
+            if(index < usersToDisplay)
+            {
+                const resolvedMember = await message.guild.members.fetch(mongoUser.userID.toString());
+
+                if (resolvedMember != null) {
+                    let userXPData : XPData = new XPData(mongoUser.xpInfo.totalXP);
+                    leaderboardResultArray.push(`${LeaderboardCommand.GetLeaderboardIndexString(index + 1)} : ${resolvedMember} — (__Level__ : **${userXPData.userLevel}**, __XP__ : **${userXPData.userXP.toLocaleString('en')})**`);
+                }
+            }
+        }
 
         //If there are no entries, print a message to let the user know
         if ( leaderboardResultArray.length == 0 ) {
-            leaderboardResultArray.push(`Could not find any members on this page. :(`);
-            leaderboardResultArray.push(`You might've entered an incorrect index, or an error has occurred.`);
+            leaderboardResultArray.push(`Could not find any members for this leaderboard. :(`);
+            leaderboardResultArray.push(`An error has likely occurred.`);
         }
 
         //After we have all the entries, add to the embed and print!
-        leaderboardEmbed.addField(`Leaderboard — ${message.guild.name} (Page ${pageToGet})`, leaderboardResultArray);
+        leaderboardEmbed.addField(`Total XP Leaderboard — ${message.guild.name}`, leaderboardResultArray);
+        return leaderboardEmbed;
+    }
+
+    private async GenerateMonthlyXPEmbed(usersToDisplay : number, message : Message) : Promise<MessageEmbed>
+    {
+        const leaderboardResultArray : Array<string> = new Array<string>();
+        const leaderboardEmbed = this.client.util.embed()
+            .setColor(embedColour);
+        const dateToday : Date = new Date();
+        const monthAgoDate : Date = new Date(dateToday.setDate(dateToday.getDate() - 30));
+        const leaderboardUsers : Array<any> = await GuildUserModel.find({userGuild : message.guild.id.toString(), "xpInfo.lastMessageDate" : { $gt : monthAgoDate }})
+            .sort({"xpInfo.xpThisMonth" : -1})
+            .exec();
+
+        //Iterate through users in the guild sorted by XP, then create string-based format
+        for (let i = 0; i < leaderboardUsers.length; i++) {
+            let mongoUser = leaderboardUsers[i];
+            let index = leaderboardUsers.indexOf(mongoUser);
+            if(index < usersToDisplay)
+            {
+                const resolvedMember = await message.guild.members.fetch(mongoUser.userID.toString());
+
+                if (resolvedMember != null) {
+                    let userXPData : XPData = new XPData(mongoUser.xpInfo.totalXP);
+                    userXPData.monthlyXP = mongoUser.xpInfo.xpThisMonth;
+                    leaderboardResultArray.push(`${LeaderboardCommand.GetLeaderboardIndexString(index + 1)} : ${resolvedMember} — (__Level__ : **${userXPData.userLevel}**, __MXP__ : **${userXPData.monthlyXP.toLocaleString('en')})**`);
+                }
+            }
+        }
+
+        //If there are no entries, print a message to let the user know
+        if ( leaderboardResultArray.length == 0 ) {
+            leaderboardResultArray.push(`Could not find any members for this leaderboard. :(`);
+            leaderboardResultArray.push(`An error has likely occurred.`);
+        }
+
+        //After we have all the entries, add to the embed and print!
+        leaderboardEmbed.addField(`Monthly XP Leaderboard (${new Date().toLocaleString('default', { month: 'long' })}) — ${message.guild.name}`, leaderboardResultArray);
         return leaderboardEmbed;
     }
 
